@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentinel Shield - Unified Cyber Threat Detection Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            border: "hsl(var(--border))",
+            input: "hsl(var(--input))",
+            ring: "hsl(var(--ring))",
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            primary: {
+              DEFAULT: "hsl(var(--primary))",
+              foreground: "hsl(var(--primary-foreground))",
+            },
+            secondary: {
+              DEFAULT: "hsl(var(--secondary))",
+              foreground: "hsl(var(--secondary-foreground))",
+            },
+            destructive: {
+              DEFAULT: "hsl(var(--destructive))",
+              foreground: "hsl(var(--destructive-foreground))",
+            },
+            muted: {
+              DEFAULT: "hsl(var(--muted))",
+              foreground: "hsl(var(--muted-foreground))",
+            },
+            accent: {
+              DEFAULT: "hsl(var(--accent))",
+              foreground: "hsl(var(--accent-foreground))",
+            },
+            popover: {
+              DEFAULT: "hsl(var(--popover))",
+              foreground: "hsl(var(--popover-foreground))",
+            },
+            card: {
+              DEFAULT: "hsl(var(--card))",
+              foreground: "hsl(var(--card-foreground))",
+            },
+          },
+          borderRadius: {
+            lg: "var(--radius)",
+            md: "calc(var(--radius) - 2px)",
+            sm: "calc(var(--radius) - 4px)",
+          },
+        },
+      },
+    }
+  </script>
+</head>
+
+<body class="bg-background text-foreground">
+  <div id="navbar-container"></div>
+  <div class="flex min-h-screen flex-col">
+    <!-- Hero Section -->
+    <div class="flex flex-1 flex-col items-center justify-center px-4 py-16">
+      <div class="mb-8 flex items-center gap-3">
+        <div class="rounded-xl bg-primary/10 p-3">
+          <i data-lucide="shield" class="h-12 w-12 text-primary"></i>
+        </div>
+      </div>
+
+      <h1 class="mb-4 text-center text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
+        Unified Cyber Threat
+        <span class="block text-primary">Detection Platform</span>
+      </h1>
+
+      <p class="mb-8 max-w-2xl text-center text-lg text-muted-foreground">
+        AI-powered security scanning for URLs, emails, messages, files, websites, QR codes, and domains.
+        Protect yourself from phishing, malware, and scams.
+      </p>
+
+      <div class="flex gap-4">
+        <a href="login.html"
+          class="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
+          Sign In
+        </a>
+        <a href="register.html"
+          class="inline-flex h-11 items-center justify-center rounded-md border border-input bg-background px-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
+          Get Started
+        </a>
+      </div>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="border-t border-border bg-muted/30 px-4 py-16">
+      <div class="mx-auto max-w-6xl">
+        <h2 class="mb-8 text-center text-2xl font-semibold">7 Security Modules</h2>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <!-- URL Scanner -->
+          <a href="scan/url.html"
+            class="group rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:bg-card/80">
+            <i data-lucide="scan" class="mb-3 h-8 w-8 text-primary transition-transform group-hover:scale-110"></i>
+            <h3 class="font-medium">URL Scanner</h3>
+            <p class="text-sm text-muted-foreground">Detect phishing & malicious links</p>
+          </a>
+          <!-- Email Analyzer -->
+          <a href="scan/email.html"
+            class="group rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:bg-card/80">
+            <i data-lucide="mail" class="mb-3 h-8 w-8 text-primary transition-transform group-hover:scale-110"></i>
+            <h3 class="font-medium">Email Analyzer</h3>
+            <p class="text-sm text-muted-foreground">Identify email threats</p>
+          </a>
+          <!-- Message Check -->
+          <a href="scan/message.html"
+            class="group rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:bg-card/80">
+            <i data-lucide="message-square"
+              class="mb-3 h-8 w-8 text-primary transition-transform group-hover:scale-110"></i>
+            <h3 class="font-medium">Message Check</h3>
+            <p class="text-sm text-muted-foreground">Analyze suspicious messages</p>
+          </a>
+          <!-- File Scanner -->
+          <a href="scan/file.html"
+            class="group rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:bg-card/80">
+            <i data-lucide="file-search"
+              class="mb-3 h-8 w-8 text-primary transition-transform group-hover:scale-110"></i>
+            <h3 class="font-medium">File Scanner</h3>
+            <p class="text-sm text-muted-foreground">Scan files for malware</p>
+          </a>
+          <!-- Website Audit -->
+          <a href="scan/website.html"
+            class="group rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:bg-card/80">
+            <i data-lucide="globe" class="mb-3 h-8 w-8 text-primary transition-transform group-hover:scale-110"></i>
+            <h3 class="font-medium">Website Audit</h3>
+            <p class="text-sm text-muted-foreground">Full website security scan</p>
+          </a>
+          <!-- QR Scanner -->
+          <a href="scan/qr.html"
+            class="group rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:bg-card/80">
+            <i data-lucide="qr-code" class="mb-3 h-8 w-8 text-primary transition-transform group-hover:scale-110"></i>
+            <h3 class="font-medium">QR Scanner</h3>
+            <p class="text-sm text-muted-foreground">Decode & verify QR codes</p>
+          </a>
+          <!-- Domain Check -->
+          <a href="domain-check.html"
+            class="group rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:bg-card/80">
+            <i data-lucide="search" class="mb-3 h-8 w-8 text-primary transition-transform group-hover:scale-110"></i>
+            <h3 class="font-medium">Domain Check</h3>
+            <p class="text-sm text-muted-foreground">WHOIS & reputation lookup</p>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-border px-4 py-6 text-center text-sm text-muted-foreground">
+      <p>Powered by AI threat intelligence</p>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { ui } from './js/ui.js';
+    ui.init();
+  </script>
+</body>
+
+</html>

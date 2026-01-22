@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --background: 220 20% 97%;
+  --foreground: 220 15% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 15% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 15% 10%;
+  --primary: 200 80% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 15% 92%;
+  --secondary-foreground: 220 15% 20%;
+  --muted: 220 15% 95%;
+  --muted-foreground: 220 10% 40%;
+  --accent: 200 80% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 15% 88%;
+  --input: 220 15% 88%;
+  --ring: 200 80% 50%;
+  --radius: 0.75rem;
+  --safe: 142 71% 45%;
+  --safe-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 100%;
+  --danger: 0 72% 51%;
+  --danger-foreground: 0 0% 100%;
+}
+
+.dark {
+  --background: 222 47% 8%;
+  --foreground: 210 20% 95%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 20% 95%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 20% 95%;
+  --primary: 192 85% 55%;
+  --primary-foreground: 222 47% 8%;
+  --secondary: 222 30% 18%;
+  --secondary-foreground: 210 20% 90%;
+  --muted: 222 30% 15%;
+  --muted-foreground: 215 20% 55%;
+  --accent: 192 85% 55%;
+  --accent-foreground: 222 47% 8%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 222 30% 20%;
+  --input: 222 30% 20%;
+  --ring: 192 85% 55%;
+  --safe: 142 71% 45%;
+  --safe-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 100%;
+  --danger: 0 72% 51%;
+  --danger-foreground: 0 0% 100%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom Utilities */
+.glass-card {
+  background-color: hsla(var(--card), 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid hsla(var(--border), 0.5);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius);
+}
+
+.threat-glow-safe {
+  box-shadow: 0 0 20px hsla(var(--safe), 0.3);
+}
+
+.threat-glow-warning {
+  box-shadow: 0 0 20px hsla(var(--warning), 0.3);
+}
+
+.threat-glow-danger {
+  box-shadow: 0 0 20px hsla(var(--danger), 0.3);
+}
+
+/* Button Reset & Base Styles */
+button, .btn {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Text primary utility because tailwind CDN might need it explicitly if not using @apply */
+.text-primary { color: hsl(var(--primary)); }
+.bg-primary { background-color: hsl(var(--primary)); }
+.bg-background { background-color: hsl(var(--background)); }
+.text-muted-foreground { color: hsl(var(--muted-foreground)); }

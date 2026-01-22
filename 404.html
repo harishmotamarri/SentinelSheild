@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found - Sentinel Shield</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg-background text-foreground">
+    <div class="min-h-screen flex flex-col items-center justify-center p-4 text-center">
+        <i data-lucide="shield-alert" class="h-20 w-20 text-primary mb-6"></i>
+        <h1 class="text-6xl font-bold mb-2">404</h1>
+        <p class="text-2xl font-semibold mb-6">Page Not Found</p>
+        <p class="text-muted-foreground max-w-md mb-8">
+            The security module you're looking for doesn't exist or has been moved to another quadrant.
+        </p>
+        <a href="index.html"
+            class="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            Return to Command Center
+        </a>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

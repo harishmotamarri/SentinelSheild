@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Scanner - Sentinel Shield</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="../style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        border: "hsl(var(--border))",
+                        input: "hsl(var(--input))",
+                        ring: "hsl(var(--ring))",
+                        background: "hsl(var(--background))",
+                        foreground: "hsl(var(--foreground))",
+                        primary: {
+                            DEFAULT: "hsl(var(--primary))",
+                            foreground: "hsl(var(--primary-foreground))",
+                        },
+                        secondary: {
+                            DEFAULT: "hsl(var(--secondary))",
+                            foreground: "hsl(var(--secondary-foreground))",
+                        },
+                        destructive: {
+                            DEFAULT: "hsl(var(--destructive))",
+                            foreground: "hsl(var(--destructive-foreground))",
+                        },
+                        muted: {
+                            DEFAULT: "hsl(var(--muted))",
+                            foreground: "hsl(var(--muted-foreground))",
+                        },
+                        accent: {
+                            DEFAULT: "hsl(var(--accent))",
+                            foreground: "hsl(var(--accent-foreground))",
+                        },
+                        popover: {
+                            DEFAULT: "hsl(var(--popover))",
+                            foreground: "hsl(var(--popover-foreground))",
+                        },
+                        card: {
+                            DEFAULT: "hsl(var(--card))",
+                            foreground: "hsl(var(--card-foreground))",
+                        },
+                    },
+                    borderRadius: {
+                        lg: "var(--radius)",
+                        md: "calc(var(--radius) - 2px)",
+                        sm: "calc(var(--radius) - 4px)",
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="bg-background text-foreground">
+    <div id="navbar-container"></div>
+
+    <div class="flex">
+        <div id="sidebar-container"></div>
+        <main class="flex-1 p-6">
+            <div class="mb-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <i data-lucide="qr-code" class="h-8 w-8 text-primary"></i>
+                    <h1 class="text-2xl font-bold">QR Code Threat Scanner</h1>
+                </div>
+                <p class="text-muted-foreground">Extract and analyze URLs or content embedded in QR codes</p>
+            </div>
+
+            <div class="max-w-4xl space-y-6">
+                <div class="space-y-4">
+                    <div id="dropZone"
+                        class="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors bg-card/20">
+                        <input type="file" id="fileInput" class="hidden" accept="image/*" />
+                        <div id="uploadPrompt">
+                            <i data-lucide="image" class="h-12 w-12 mx-auto text-muted-foreground mb-3"></i>
+                            <p class="text-muted-foreground">Click to upload QR code image</p>
+                            <p class="text-sm text-muted-foreground mt-1">PNG, JPG, or WEBP</p>
+                        </div>
+                        <div id="previewContainer" class="hidden relative inline-block mx-auto">
+                            <img id="qrPreview" class="max-h-48 mx-auto rounded-lg" />
+                            <button id="clearImage"
+                                class="absolute -top-2 -right-2 bg-destructive text-destructive-foreground p-1 rounded-full shadow-lg">
+                                <i data-lucide="x" class="h-4 w-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button id="scanBtn"
+                        class="w-full inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                        <i id="loader" data-lucide="loader-2" class="hidden h-4 w-4 animate-spin mr-2"></i>
+                        <span id="btnText">Scan QR Code</span>
+                    </button>
+                </div>
+
+                <div id="resultContainer" class="hidden"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { auth } from '../js/auth.js';
+        import { ui } from '../js/ui.js';
+        import { scans } from '../js/scans.js';
+
+        ui.init();
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const previewContainer = document.getElementById('previewContainer');
+        const qrPreview = document.getElementById('qrPreview');
+        const clearImageBtn = document.getElementById('clearImage');
+        const scanBtn = document.getElementById('scanBtn');
+        const loader = document.getElementById('loader');
+        const btnText = document.getElementById('btnText');
+        const resultContainer = document.getElementById('resultContainer');
+
+        let selectedFile = null;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length > 0) {
+                selectedFile = files[0];
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    qrPreview.src = reader.result;
+                    uploadPrompt.classList.add('hidden');
+                    previewContainer.classList.remove('hidden');
+                    resultContainer.classList.add('hidden');
+                };
+                reader.readAsDataURL(selectedFile);
+            }
+        });
+
+        clearImageBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedFile = null;
+            fileInput.value = '';
+            previewContainer.classList.add('hidden');
+            uploadPrompt.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+        });
+
+        scanBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            scanBtn.disabled = true;
+            loader.classList.remove('hidden');
+            btnText.textContent = 'Scanning...';
+
+            try {
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const base64 = reader.result.split(',')[1];
+                    try {
+                        const result = await scans.createScan('qr', selectedFile.name, {
+                            name: selectedFile.name,
+                            type: selectedFile.type,
+                            base64
+                        });
+                        renderResult(result);
+                        resultContainer.classList.remove('hidden');
+                    } catch (err) {
+                        alert('Scan failed: ' + err.message);
+                    } finally {
+                        scanBtn.disabled = false;
+                        loader.classList.add('hidden');
+                        btnText.textContent = 'Scan QR Code';
+                    }
+                };
+                reader.readAsDataURL(selectedFile);
+            } catch (err) {
+                alert('File read failed');
+                scanBtn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        });
+
+        const renderResult = (result) => {
+            const isSafe = ['SAFE', 'LEGITIMATE', 'SAFE_FILE'].includes(result.classification);
+            const colorClass = isSafe ? 'text-green-500' : 'text-red-500';
+            resultContainer.innerHTML = `
+                <div class="glass-card p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="${isSafe ? 'shield-check' : 'shield-alert'}" class="h-6 w-6 ${colorClass}"></i>
+                        <h3 class="text-xl font-bold ${colorClass}">${result.classification}</h3>
+                    </div>
+                    <div class="text-sm text-muted-foreground">Confidence: ${Math.round(result.confidence_score * 100)}%</div>
+                </div>
+            `;
+            lucide.createIcons();
+        };
+
+        auth.checkAuth();
+    </script>
+</body>
+
+</html>

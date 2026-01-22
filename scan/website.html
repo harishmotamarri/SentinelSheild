@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Audit - Sentinel Shield</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="../style.css">
+</head>
+
+<body class="bg-background text-foreground">
+    <div id="navbar-container"></div>
+    <div class="flex">
+        <div id="sidebar-container"></div>
+        <main class="flex-1 p-6">
+            <div class="mb-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <i data-lucide="globe" class="h-8 w-8 text-primary"></i>
+                    <h1 class="text-2xl font-bold">Website Content Inspector</h1>
+                </div>
+                <p class="text-muted-foreground">Analyze website content for fake login forms, hidden elements, and
+                    suspicious scripts</p>
+            </div>
+            <div class="max-w-4xl space-y-6">
+                <div class="flex gap-3">
+                    <input id="urlInput" type="text"
+                        placeholder="Enter website URL to inspect (e.g., https://example.com)"
+                        class="flex-1 h-10 rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                    <button id="scanBtn"
+                        class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                        <i id="loader" data-lucide="loader-2" class="hidden h-4 w-4 animate-spin mr-2"></i>
+                        <span id="btnText">Inspect Website</span>
+                    </button>
+                </div>
+                <div id="resultContainer" class="hidden"></div>
+            </div>
+        </main>
+    </div>
+    <script type="module">
+        import { auth } from '../js/auth.js';
+        import { ui } from '../js/ui.js';
+        import { scans } from '../js/scans.js';
+        ui.init();
+        const urlInput = document.getElementById('urlInput');
+        const scanBtn = document.getElementById('scanBtn');
+        const loader = document.getElementById('loader');
+        const btnText = document.getElementById('btnText');
+        const resultContainer = document.getElementById('resultContainer');
+
+        const handleScan = async () => {
+            const url = urlInput.value.trim();
+            if (!url) return;
+            scanBtn.disabled = true;
+            loader.classList.remove('hidden');
+            btnText.textContent = 'Inspecting...';
+            resultContainer.classList.add('hidden');
+            try {
+                const result = await scans.createScan('website', url);
+                renderResult(result, url);
+                resultContainer.classList.remove('hidden');
+            } catch (err) {
+                alert('Audit failed: ' + err.message);
+            } finally {
+                scanBtn.disabled = false;
+                loader.classList.add('hidden');
+                btnText.textContent = 'Inspect Website';
+            }
+        };
+
+        const renderResult = (result, input) => {
+            const isSafe = ['SAFE', 'LEGITIMATE', 'SAFE_FILE'].includes(result.classification);
+            const colorClass = isSafe ? 'text-green-500' : 'text-red-500';
+            const bgClass = isSafe ? 'bg-green-500/10' : 'bg-red-500/10';
+            resultContainer.innerHTML = `
+                <div class="glass-card overflow-hidden">
+                    <div class="p-6 border-b border-border ${bgClass}">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="${isSafe ? 'shield-check' : 'shield-alert'}" class="h-6 w-6 ${colorClass}"></i>
+                                <h3 class="text-xl font-bold ${colorClass}">${result.classification}</h3>
+                            </div>
+                            <div class="text-lg font-bold">${Math.round(result.confidence_score * 100)}% Confidence</div>
+                        </div>
+                         <div class="p-3 bg-background/50 rounded-lg border border-border font-mono text-sm break-all">
+                            ${input}
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        };
+        scanBtn.addEventListener('click', handleScan);
+        auth.checkAuth();
+    </script>
+</body>
+
+</html>

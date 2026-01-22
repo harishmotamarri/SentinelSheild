@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Detector - Sentinel Shield</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="../style.css">
+</head>
+
+<body class="bg-background text-foreground">
+    <div id="navbar-container"></div>
+    <div class="flex">
+        <div id="sidebar-container"></div>
+        <main class="flex-1 p-6">
+            <div class="mb-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <i data-lucide="message-square" class="h-8 w-8 text-primary"></i>
+                    <h1 class="text-2xl font-bold">SMS & Message Detector</h1>
+                </div>
+                <p class="text-muted-foreground">Analyze suspicious messages for smishing and scam attempts</p>
+            </div>
+            <div class="max-w-4xl space-y-6">
+                <div class="flex flex-col gap-3">
+                    <textarea id="messageInput" placeholder="Paste message content here..."
+                        class="flex-1 min-h-[150px] w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"></textarea>
+                    <button id="scanBtn"
+                        class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 self-end">
+                        <i id="loader" data-lucide="loader-2" class="hidden h-4 w-4 animate-spin mr-2"></i>
+                        <span id="btnText">Check Message</span>
+                    </button>
+                </div>
+                <div id="resultContainer" class="hidden"></div>
+            </div>
+        </main>
+    </div>
+    <script type="module">
+        import { auth } from '../js/auth.js';
+        import { ui } from '../js/ui.js';
+        import { scans } from '../js/scans.js';
+        ui.init();
+        const messageInput = document.getElementById('messageInput');
+        const scanBtn = document.getElementById('scanBtn');
+        const loader = document.getElementById('loader');
+        const btnText = document.getElementById('btnText');
+        const resultContainer = document.getElementById('resultContainer');
+
+        const handleScan = async () => {
+            const content = messageInput.value.trim();
+            if (!content) return;
+            scanBtn.disabled = true;
+            loader.classList.remove('hidden');
+            btnText.textContent = 'Checking...';
+            resultContainer.classList.add('hidden');
+            try {
+                const result = await scans.createScan('message', content);
+                renderResult(result, content);
+                resultContainer.classList.remove('hidden');
+            } catch (err) {
+                alert('Check failed: ' + err.message);
+            } finally {
+                scanBtn.disabled = false;
+                loader.classList.add('hidden');
+                btnText.textContent = 'Check Message';
+            }
+        };
+
+        const renderResult = (result, input) => {
+            const isSafe = ['SAFE', 'LEGITIMATE', 'SAFE_FILE'].includes(result.classification);
+            const colorClass = isSafe ? 'text-green-500' : 'text-red-500';
+            const bgClass = isSafe ? 'bg-green-500/10' : 'bg-red-500/10';
+            resultContainer.innerHTML = `
+                <div class="glass-card overflow-hidden">
+                    <div class="p-6 border-b border-border ${bgClass}">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="${isSafe ? 'shield-check' : 'shield-alert'}" class="h-6 w-6 ${colorClass}"></i>
+                                <h3 class="text-xl font-bold ${colorClass}">${result.classification}</h3>
+                            </div>
+                            <div class="text-sm font-bold">${Math.round(result.confidence_score * 100)}% Confidence</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        };
+        scanBtn.addEventListener('click', handleScan);
+        auth.checkAuth();
+    </script>
+</body>
+
+</html>

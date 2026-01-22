@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Scanner - Sentinel Shield</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="../style.css">
+</head>
+
+<body class="bg-background text-foreground">
+    <div id="navbar-container"></div>
+    <div class="flex">
+        <div id="sidebar-container"></div>
+        <main class="flex-1 p-6">
+            <div class="mb-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <i data-lucide="file-up" class="h-8 w-8 text-primary"></i>
+                    <h1 class="text-2xl font-bold">File Malware Analyzer</h1>
+                </div>
+                <p class="text-muted-foreground">Analyze files for malware signatures and suspicious patterns</p>
+            </div>
+            <div class="max-w-4xl space-y-6">
+                <div class="space-y-4">
+                    <div id="dropZone"
+                        class="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors bg-card/20">
+                        <input type="file" id="fileInput" class="hidden"
+                            accept=".pdf,.docx,.doc,.exe,.zip,.apk,.txt,.js,.py" />
+                        <div id="uploadPrompt">
+                            <i data-lucide="file-up" class="h-12 w-12 mx-auto text-muted-foreground mb-3"></i>
+                            <p class="text-muted-foreground">Click to upload or drag and drop</p>
+                            <p class="text-sm text-muted-foreground mt-1">PDF, DOCX, EXE, ZIP, APK (max 10MB)</p>
+                        </div>
+                        <div id="fileInfo" class="hidden flex items-center justify-center gap-3">
+                            <i data-lucide="file" class="h-8 w-8 text-primary"></i>
+                            <div class="text-left">
+                                <p id="fileName" class="font-medium truncate max-w-[200px]"></p>
+                                <p id="fileSize" class="text-sm text-muted-foreground"></p>
+                            </div>
+                            <button id="clearFile" class="p-2 hover:bg-secondary rounded-full">
+                                <i data-lucide="x" class="h-4 w-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button id="scanBtn"
+                        class="w-full inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                        <i id="loader" data-lucide="loader-2" class="hidden h-4 w-4 animate-spin mr-2"></i>
+                        <span id="btnText">Analyze File</span>
+                    </button>
+                </div>
+                <div id="resultContainer" class="hidden"></div>
+            </div>
+        </main>
+    </div>
+    <script type="module">
+        import { auth } from '../js/auth.js';
+        import { ui } from '../js/ui.js';
+        import { scans } from '../js/scans.js';
+
+        ui.init();
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const clearFileBtn = document.getElementById('clearFile');
+        const scanBtn = document.getElementById('scanBtn');
+        const loader = document.getElementById('loader');
+        const btnText = document.getElementById('btnText');
+        const resultContainer = document.getElementById('resultContainer');
+
+        let selectedFile = null;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        const handleFiles = (files) => {
+            if (files.length > 0) {
+                selectedFile = files[0];
+                fileName.textContent = selectedFile.name;
+                fileSize.textContent = (selectedFile.size / 1024).toFixed(2) + ' KB';
+                uploadPrompt.classList.add('hidden');
+                fileInfo.classList.remove('hidden');
+                resultContainer.classList.add('hidden');
+            }
+        };
+
+        clearFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.classList.add('hidden');
+            uploadPrompt.classList.remove('hidden');
+        });
+
+        scanBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            scanBtn.disabled = true;
+            loader.classList.remove('hidden');
+            btnText.textContent = 'Analyzing...';
+
+            try {
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const base64 = reader.result.split(',')[1];
+                    try {
+                        const result = await scans.createScan('file', selectedFile.name, {
+                            name: selectedFile.name,
+                            type: selectedFile.type,
+                            base64
+                        });
+                        renderResult(result);
+                        resultContainer.classList.remove('hidden');
+                    } catch (err) {
+                        alert('Scan failed: ' + err.message);
+                    } finally {
+                        scanBtn.disabled = false;
+                        loader.classList.add('hidden');
+                        btnText.textContent = 'Analyze File';
+                    }
+                };
+                reader.readAsDataURL(selectedFile);
+            } catch (err) {
+                alert('File read failed');
+                scanBtn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        });
+
+        const renderResult = (result) => {
+            const isSafe = ['SAFE', 'LEGITIMATE', 'SAFE_FILE'].includes(result.classification);
+            const colorClass = isSafe ? 'text-green-500' : 'text-red-500';
+            resultContainer.innerHTML = `
+                <div class="glass-card p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="${isSafe ? 'shield-check' : 'shield-alert'}" class="h-6 w-6 ${colorClass}"></i>
+                        <h3 class="text-xl font-bold ${colorClass}">${result.classification}</h3>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        };
+
+        auth.checkAuth();
+    </script>
+</body>
+
+</html>

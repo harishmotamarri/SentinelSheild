@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan History - Sentinel Shield</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        border: "hsl(var(--border))",
+                        input: "hsl(var(--input))",
+                        ring: "hsl(var(--ring))",
+                        background: "hsl(var(--background))",
+                        foreground: "hsl(var(--foreground))",
+                        primary: {
+                            DEFAULT: "hsl(var(--primary))",
+                            foreground: "hsl(var(--primary-foreground))",
+                        },
+                        secondary: {
+                            DEFAULT: "hsl(var(--secondary))",
+                            foreground: "hsl(var(--secondary-foreground))",
+                        },
+                        destructive: {
+                            DEFAULT: "hsl(var(--destructive))",
+                            foreground: "hsl(var(--destructive-foreground))",
+                        },
+                        muted: {
+                            DEFAULT: "hsl(var(--muted))",
+                            foreground: "hsl(var(--muted-foreground))",
+                        },
+                        accent: {
+                            DEFAULT: "hsl(var(--accent))",
+                            foreground: "hsl(var(--accent-foreground))",
+                        },
+                        popover: {
+                            DEFAULT: "hsl(var(--popover))",
+                            foreground: "hsl(var(--popover-foreground))",
+                        },
+                        card: {
+                            DEFAULT: "hsl(var(--card))",
+                            foreground: "hsl(var(--card-foreground))",
+                        },
+                    },
+                    borderRadius: {
+                        lg: "var(--radius)",
+                        md: "calc(var(--radius) - 2px)",
+                        sm: "calc(var(--radius) - 4px)",
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="bg-background text-foreground">
+    <div id="navbar-container"></div>
+
+    <main class="container mx-auto px-4 py-8">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold">Scan History</h1>
+            <p class="text-muted-foreground mt-1">Review all your previous security scans</p>
+        </div>
+
+        <div id="loading" class="flex items-center justify-center py-20">
+            <i data-lucide="loader-2" class="h-8 w-8 animate-spin text-primary"></i>
+        </div>
+
+        <div id="history-content" class="hidden">
+            <div class="glass-card">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-muted/50 border-y border-border">
+                            <tr>
+                                <th class="text-left p-4 font-medium">Date</th>
+                                <th class="text-left p-4 font-medium">Type</th>
+                                <th class="text-left p-4 font-medium">Input</th>
+                                <th class="text-left p-4 font-medium">Result</th>
+                                <th class="text-left p-4 font-medium">Score</th>
+                                <th class="text-left p-4 font-medium">Risk</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <!-- Rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="emptyState" class="hidden py-20 text-center">
+                    <i data-lucide="search" class="mx-auto h-12 w-12 text-muted-foreground mb-4"></i>
+                    <h3 class="text-lg font-medium">No scans yet</h3>
+                    <p class="text-muted-foreground">Perform your first scan to see history</p>
+                    <a href="scan/url.html"
+                        class="inline-flex mt-4 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Start
+                        New Scan</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { auth } from './js/auth.js';
+        import { ui } from './js/ui.js';
+        import { supabaseClient } from './js/supabase.js';
+
+        ui.init();
+
+        const loading = document.getElementById('loading');
+        const content = document.getElementById('history-content');
+        const tableBody = document.getElementById('historyTableBody');
+        const emptyState = document.getElementById('emptyState');
+
+        const loadHistory = async () => {
+            const user = await auth.checkAuth();
+            if (!user) return;
+
+            try {
+                const { data: scans, error } = await supabaseClient
+                    .from('scans')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                if (scans.length === 0) {
+                    emptyState.classList.remove('hidden');
+                } else {
+                    renderTable(scans);
+                }
+
+                loading.classList.add('hidden');
+                content.classList.remove('hidden');
+                lucide.createIcons();
+            } catch (err) {
+                console.error('History error:', err);
+                alert('Failed to load history');
+            }
+        };
+
+        const renderTable = (scans) => {
+            tableBody.innerHTML = scans.map(scan => `
+                <tr class="border-b border-border hover:bg-muted/50 transition-colors">
+                    <td class="p-4 whitespace-nowrap">${new Date(scan.created_at).toLocaleString()}</td>
+                    <td class="p-4 uppercase text-xs font-semibold">${scan.scan_type}</td>
+                    <td class="p-4 truncate max-w-xs">${scan.input_value}</td>
+                    <td class="p-4">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium 
+                            ${['SAFE', 'LEGITIMATE', 'SAFE_FILE'].includes(scan.classification) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                            ${scan.classification}
+                        </span>
+                    </td>
+                    <td class="p-4">${Math.round(scan.confidence_score * 100)}%</td>
+                    <td class="p-4 capitalize">${scan.risk_level.toLowerCase()}</td>
+                </tr>
+            `).join('');
+        };
+
+        loadHistory();
+    </script>
+</body>
+
+</html>
