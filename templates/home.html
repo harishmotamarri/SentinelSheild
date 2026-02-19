@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Shield - Unified Threat Detection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fa-solid fa-shield-halved"></i> Sentinel Shield
+        </div>
+        <button class="btn-icon" onclick="toggleTheme()"
+            style="background:none; border:none; color:inherit; font-size:1.2rem; cursor:pointer;">
+            <i id="theme-icon" class="fa-solid fa-sun"></i>
+        </button>
+    </nav>
+
+    <main id="landing-page" class="view active">
+        <section class="hero">
+            <div class="hero-icon">
+                <i class="fa-regular fa-shield"></i> <svg viewBox="0 0 24 24" width="60" height="60" fill="none"
+                    stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+            </div>
+            <h1>Unified Cyber Threat<br><span class="highlight">Detection Platform</span></h1>
+            <p class="subtitle">AI-powered security scanning for URLs, emails, messages, files, websites, QR codes, and
+                domains. Protect yourself from phishing, malware, and scams.</p>
+
+            <div class="cta-group">
+                <a href="{{ url_for('login') }}" class="btn btn-primary">Sign In</a>
+                <button class="btn btn-secondary">Get Started</button>
+            </div>
+        </section>
+
+        <section class="features">
+            <h2>7 Security Modules</h2>
+            <div class="grid-container">
+                <div class="card">
+                    <div class="icon-box"><i class="fa-solid fa-expand"></i></div>
+                    <h3>URL Scanner</h3>
+                    <p>Detect phishing & malicious links</p>
+                </div>
+                <div class="card">
+                    <div class="icon-box"><i class="fa-regular fa-envelope"></i></div>
+                    <h3>Email Analyzer</h3>
+                    <p>Identify email threats</p>
+                </div>
+                <div class="card">
+                    <div class="icon-box"><i class="fa-regular fa-message"></i></div>
+                    <h3>Message Check</h3>
+                    <p>Analyze suspicious messages</p>
+                </div>
+                <div class="card">
+                    <div class="icon-box"><i class="fa-regular fa-file-lines"></i></div>
+                    <h3>File Scanner</h3>
+                    <p>Scan files for malware</p>
+                </div>
+                <div class="card">
+                    <div class="icon-box"><i class="fa-solid fa-globe"></i></div>
+                    <h3>Website Audit</h3>
+                    <p>Full website security scan</p>
+                </div>
+                <div class="card">
+                    <div class="icon-box"><i class="fa-solid fa-qrcode"></i></div>
+                    <h3>QR Scanner</h3>
+                    <p>Decode & verify QR codes</p>
+                </div>
+                <div class="card">
+                    <div class="icon-box"><i class="fa-solid fa-magnifying-glass"></i></div>
+                    <h3>Domain Check</h3>
+                    <p>WHOIS & reputation lookup</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>

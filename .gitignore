@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+
+# Large Data Files
+model/url.pkl
+*.pkl
+*.h5
+*.model
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Debug/Temp files
+debug_*.py
+test_*.py
+test_*.txt
+predictions*.txt
+*_output.txt
+classes.txt
+features.txt
+model_type.txt

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Shield - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+
+<body>
+
+    <div id="app-view" class="app-wrapper">
+
+        <nav class="navbar">
+            <div class="nav-left">
+                <div class="logo">
+                    <i class="fa-solid fa-shield-halved"></i> Sentinel Shield
+                </div>
+                <div class="nav-links">
+                    <button class="nav-item active" onclick="switchTab('dashboard')">Dashboard</button>
+                    <button class="nav-item" onclick="switchTab('scan')">Scan</button>
+                    <button class="nav-item" onclick="switchTab('history')">History</button>
+                </div>
+            </div>
+            <div class="nav-right">
+                <div class="user-menu-container" style="display:flex; align-items:center; gap:15px;">
+                    <button class="btn-icon" onclick="toggleTheme()"
+                        style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">
+                        <i id="theme-icon" class="fa-solid fa-sun"></i>
+                    </button>
+                    <button class="user-icon-btn" onclick="toggleUserMenu()">
+                        <i class="fa-regular fa-user"></i>
+                    </button>
+                    <div id="user-dropdown" class="dropdown-menu hidden">
+                        <div class="dropdown-header">
+                            <p class="u-email">motamariharish@gmail.com</p>
+                            <p class="u-role">User</p>
+                        </div>
+                        <a href="#" onclick="switchTab('dashboard')"><i class="fa-solid fa-gauge-high"></i>
+                            Dashboard</a>
+                        <a href="#" onclick="handleLogout()" class="text-red"><i
+                                class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="page-header">
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p class="text-muted">Welcome back! Here's your security overview.</p>
+                    </div>
+                    <button class="btn btn-accent" onclick="switchTab('scan')">New Scan <i
+                            class="fa-solid fa-arrow-right"></i></button>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-text">
+                            <span>Total Scans</span>
+                            <h2 class="text-blue">0</h2>
+                        </div>
+                        <div class="stat-icon bg-blue"><i class="fa-solid fa-bolt-lightning"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-text">
+                            <span>Threats Detected</span>
+                            <h2 class="text-red">0</h2>
+                        </div>
+                        <div class="stat-icon bg-red"><i class="fa-solid fa-shield-virus"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-text">
+                            <span>Safe Results</span>
+                            <h2 class="text-green">0</h2>
+                        </div>
+                        <div class="stat-icon bg-green"><i class="fa-solid fa-shield-check"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-text">
+                            <span>Detection Rate</span>
+                            <h2 class="text-orange">0%</h2>
+                        </div>
+                        <div class="stat-icon bg-orange"><i class="fa-solid fa-chart-pie"></i></div>
+                    </div>
+                </div>
+
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h3>Scans by Type</h3>
+                        <div class="empty-state">No scan data available</div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Threat Distribution</h3>
+                        <div class="empty-state">No threat data available</div>
+                    </div>
+                </div>
+
+                <div class="recent-scans-card">
+                    <div class="card-header">
+                        <h3>Recent Scans</h3>
+                        <button class="btn-text" onclick="switchTab('history')">View All</button>
+                    </div>
+                    <div class="empty-state small">
+                        No scans yet. Start by scanning a URL, email, or file.
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-scan" class="tab-content hidden">
+                <div class="scan-layout">
+                    <aside class="scan-sidebar">
+                        <div class="sidebar-label">TOOLS</div>
+                        <ul class="tool-list">
+                            <li class="tool-item active" onclick="openTool(this, 'url')"><i
+                                    class="fa-solid fa-link"></i> URL Scanner</li>
+                            <li class="tool-item" onclick="openTool(this, 'email')"><i
+                                    class="fa-regular fa-envelope"></i> Email Analyzer</li>
+                            <li class="tool-item" onclick="openTool(this, 'sms')"><i
+                                    class="fa-regular fa-comment-dots"></i> SMS Detector</li>
+                            <li class="tool-item" onclick="openTool(this, 'file')"><i
+                                    class="fa-regular fa-file-code"></i> File Scanner</li>
+                            <li class="tool-item" onclick="openTool(this, 'web')"><i class="fa-solid fa-globe"></i>
+                                Website Inspector</li>
+                            <li class="tool-item" onclick="openTool(this, 'qr')"><i class="fa-solid fa-qrcode"></i> QR
+                                Scanner</li>
+                            <li class="tool-item" onclick="openTool(this, 'domain')"><i
+                                    class="fa-solid fa-magnifying-glass"></i> Domain Check</li>
+                        </ul>
+                    </aside>
+
+                    <div class="tool-display">
+
+                        <div id="tool-url" class="tool-panel active">
+                            <h2><i class="fa-solid fa-link"></i> URL Threat Scanner</h2>
+                            <p class="text-muted mb-4">Analyze URLs for phishing, malware, and other security threats
+                            </p>
+                            <div class="input-wrapper">
+                                <input type="text" id="url-input" class="dark-input"
+                                    placeholder="Enter URL to scan (e.g., https://example.com)">
+                                <button id="url-scan-btn" class="btn btn-accent">Scan</button>
+                            </div>
+                            <div id="url-result" class="mt-4 hidden"></div>
+                        </div>
+
+                        <div id="tool-email" class="tool-panel hidden">
+                            <h2><i class="fa-regular fa-envelope"></i> Email Phishing Detector</h2>
+                            <p class="text-muted mb-4">Analyze email content for phishing attempts and suspicious
+                                elements</p>
+                            <input type="text" class="dark-input mb-3" placeholder="Email subject line (optional)">
+                            <textarea class="dark-input mb-3" rows="6"
+                                placeholder="Paste the email body content here..."></textarea>
+                            <button class="btn btn-accent full-width">Analyze Email</button>
+                        </div>
+
+                        <div id="tool-sms" class="tool-panel hidden">
+                            <h2><i class="fa-regular fa-comment-dots"></i> SMS/Message Scam Detector</h2>
+                            <p class="text-muted mb-4">Detect scam patterns, urgency tactics, and suspicious links in
+                                messages</p>
+                            <textarea class="dark-input mb-3" rows="4"
+                                placeholder="Paste the SMS or message content here..."></textarea>
+                            <button class="btn btn-accent full-width">Analyze Message</button>
+                        </div>
+
+                        <div id="tool-file" class="tool-panel hidden">
+                            <h2><i class="fa-regular fa-file-code"></i> File Malware Analyzer</h2>
+                            <p class="text-muted mb-4">Analyze files for malware signatures and suspicious patterns</p>
+                            <div class="upload-zone">
+                                <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                                <p>Click to upload or drag and drop</p>
+                                <span class="text-small">PDF, DOCX, EXE, ZIP, APK (max 10MB)</span>
+                            </div>
+                            <button class="btn btn-accent full-width mt-3">Analyze File</button>
+                        </div>
+
+                        <div id="tool-web" class="tool-panel hidden">
+                            <h2><i class="fa-solid fa-globe"></i> Website Content Inspector</h2>
+                            <p class="text-muted mb-4">Analyze website content for fake login forms, hidden elements,
+                                and suspicious scripts</p>
+                            <div class="input-wrapper">
+                                <input type="text" class="dark-input"
+                                    placeholder="Enter website URL to inspect (e.g., https://example.com)">
+                                <button class="btn btn-accent">Inspect Website</button>
+                            </div>
+                        </div>
+
+                        <div id="tool-qr" class="tool-panel hidden">
+                            <h2><i class="fa-solid fa-qrcode"></i> QR Code Threat Scanner</h2>
+                            <p class="text-muted mb-4">Extract and analyze URLs or content embedded in QR codes</p>
+                            <div class="upload-zone">
+                                <i class="fa-regular fa-image"></i>
+                                <p>Click to upload QR code image</p>
+                                <span class="text-small">PNG, JPG, or WEBP</span>
+                            </div>
+                            <button class="btn btn-accent full-width mt-3">Scan QR Code</button>
+                        </div>
+
+                        <div id="tool-domain" class="tool-panel hidden">
+                            <h2><i class="fa-solid fa-magnifying-glass"></i> Domain Reputation Check</h2>
+                            <p class="text-muted mb-4">Check domain age, registrar information, and reputation
+                                indicators</p>
+                            <div class="input-wrapper">
+                                <input type="text" class="dark-input"
+                                    placeholder="Enter domain name (e.g., example.com)">
+                                <button class="btn btn-accent">Check Domain</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-history" class="tab-content hidden">
+                <div class="page-header">
+                    <div>
+                        <h1>Scan History</h1>
+                        <p class="text-muted">View and search your past security scans</p>
+                    </div>
+                    <button class="btn btn-dark-outline">All Types <i class="fa-solid fa-caret-down"></i></button>
+                </div>
+
+                <div class="history-container">
+                    <div class="table-header">
+                        <span>Type</span>
+                        <span>Input</span>
+                        <span>Result</span>
+                        <span>Confidence</span>
+                        <span>Risk Level</span>
+                    </div>
+
+                    <div id="history-loading" class="loading-state hidden">
+                        <div class="spinner"></div>
+                        <p>Loading...</p>
+                    </div>
+
+                    <div id="history-empty" class="empty-history hidden">
+                        No scans found
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <div id="toast" class="toast hidden">
+        <div class="toast-body">
+            <strong>Welcome back!</strong>
+            <p>You have successfully signed in.</p>
+        </div>
+        <div class="toast-line"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
