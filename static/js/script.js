@@ -191,5 +191,82 @@ document.addEventListener('DOMContentLoaded', () => {
                 scanBtn.disabled = false;
             }
         });
+
+    }
+
+    // Email Scanner Logic
+    const emailScanBtn = document.getElementById('email-scan-btn');
+    console.log("Email Scan Button found:", emailScanBtn);
+    if (emailScanBtn) {
+        emailScanBtn.addEventListener('click', async () => {
+            console.log("Email scan button clicked");
+            const input = document.getElementById('email-input');
+            const resultDiv = document.getElementById('email-result');
+            const text = input.value.trim();
+
+            if (!text) {
+                alert('Please enter email content');
+                return;
+            }
+
+            // UI Loading State
+            const originalText = emailScanBtn.innerHTML;
+            emailScanBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Analyzing...';
+            emailScanBtn.disabled = true;
+            resultDiv.classList.add('hidden');
+            resultDiv.innerHTML = '';
+
+            try {
+                // Call API
+                const response = await fetch('/analyze-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+
+                const data = await response.json();
+
+                resultDiv.classList.remove('hidden');
+
+                if (data.error) {
+                    resultDiv.innerHTML = `<div class="p-3 bg-red-900 border border-red-700 rounded text-red-200">Error: ${data.error}</div>`;
+                } else {
+                    const isPhishing = data.label === 'phishing';
+                    const colorClass = isPhishing ? 'text-red-400' : 'text-green-400';
+                    const bgClass = isPhishing ? 'bg-red-900/30 border-red-700' : 'bg-green-900/30 border-green-700';
+                    const icon = isPhishing ? '<i class="fa-solid fa-triangle-exclamation"></i>' : '<i class="fa-solid fa-check-circle"></i>';
+
+                    let featuresHtml = '';
+                    if (data.engineered_features) {
+                        featuresHtml = `
+                            <div class="mt-3 text-sm text-gray-400">
+                                <p><strong>Analysis Details:</strong></p>
+                                <ul class="list-disc pl-5 mt-1">
+                                    <li>Suspicious Keywords: ${data.engineered_features.suspicious_keywords}</li>
+                                    <li>URLs Found: ${data.engineered_features.url_count}</li>
+                                    <li>Risk Score: ${data.risk_score}</li>
+                                </ul>
+                            </div>
+                        `;
+                    }
+
+                    resultDiv.innerHTML = `
+                        <div class="p-4 ${bgClass} border rounded">
+                            <h3 class="text-xl font-bold ${colorClass} mb-2">${icon} ${data.label.toUpperCase()}</h3>
+                            <p class="text-sm text-gray-300">Confidence: ${(data.confidence * 100).toFixed(2)}%</p>
+                            ${featuresHtml}
+                        </div>
+                    `;
+                }
+
+            } catch (err) {
+                console.error(err);
+                resultDiv.classList.remove('hidden');
+                resultDiv.innerHTML = `<div class="p-3 bg-red-900 border border-red-700 rounded text-red-200">Network Error: Is the backend running?</div>`;
+            } finally {
+                emailScanBtn.innerHTML = originalText;
+                emailScanBtn.disabled = false;
+            }
+        });
     }
 });

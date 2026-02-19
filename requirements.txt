@@ -1,9 +1,0 @@
-flask
-flask-cors
-scikit-learn
-pandas
-numpy
-joblib
-requests
-beautifulsoup4
-tldextract

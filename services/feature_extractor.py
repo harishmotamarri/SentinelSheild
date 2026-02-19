@@ -1,4 +1,3 @@
-
 import re
 import requests
 from urllib.parse import urlparse
@@ -64,10 +63,6 @@ class FeatureExtractor:
         self.features['Shortining_Service'] = 1 if any(s in self.url for s in shorteners) else 0
         
         self.features['having_ip_address'] = 1 if re.search(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', self.parsed_url.netloc) else 0
-        
-        # 3. Web Content Features (Need to fetch)
-        # For performance, maybe skip fetch if just verifying structure first? No, model needs it.
-        # self.fetch_web_content() # Moved to app.py call or explicit call
         
         self.features['web_http_status'] = self.status_code
         self.features['web_is_live'] = self.is_live
@@ -166,9 +161,44 @@ class FeatureExtractor:
         # Ensure ordering
         return pd.DataFrame([self.features], columns=ordered_features).fillna(0)
 
-# Test run if executed directly
-if __name__ == "__main__":
-    extractor = FeatureExtractor("http://google.com")
-    extractor.fetch_web_content()
-    df = extractor.extract_features()
-    print(df.T)
+
+class EmailFeatureExtractor:
+    def __init__(self, text):
+        self.text = text
+        self.features = {}
+
+    def extract_features(self):
+        # 1. URL Count
+        # Simple regex for URL detection
+        url_pattern = r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+'
+        urls = re.findall(url_pattern, self.text)
+        self.features['url_count'] = len(urls)
+
+        # 2. Suspicious Keyword Count
+        keywords = ['verify', 'urgent', 'login', 'account', 'update', 'click', 'bank']
+        self.features['suspicious_keywords'] = sum(self.text.lower().count(kw) for kw in keywords)
+
+        # 3. Digit Ratio
+        text_len = len(self.text)
+        if text_len > 0:
+            digit_count = sum(c.isdigit() for c in self.text)
+            self.features['digit_ratio'] = digit_count / text_len
+        else:
+            self.features['digit_ratio'] = 0.0
+
+        # 4. Special Character Frequency
+        special_chars = r'[!@#$%^&*(),.?":{}|<>]'
+        if text_len > 0:
+            special_count = len(re.findall(special_chars, self.text))
+            self.features['special_char_freq'] = special_count / text_len
+        else:
+            self.features['special_char_freq'] = 0.0
+
+        # 5. Uppercase Ratio
+        if text_len > 0:
+            upper_count = sum(c.isupper() for c in self.text)
+            self.features['uppercase_ratio'] = upper_count / text_len
+        else:
+            self.features['uppercase_ratio'] = 0.0
+
+        return self.features

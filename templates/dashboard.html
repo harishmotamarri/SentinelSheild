@@ -154,9 +154,10 @@
                             <p class="text-muted mb-4">Analyze email content for phishing attempts and suspicious
                                 elements</p>
                             <input type="text" class="dark-input mb-3" placeholder="Email subject line (optional)">
-                            <textarea class="dark-input mb-3" rows="6"
+                            <textarea id="email-input" class="dark-input mb-3" rows="6"
                                 placeholder="Paste the email body content here..."></textarea>
-                            <button class="btn btn-accent full-width">Analyze Email</button>
+                            <button id="email-scan-btn" class="btn btn-accent full-width">Analyze Email</button>
+                            <div id="email-result" class="mt-4 hidden"></div>
                         </div>
 
                         <div id="tool-sms" class="tool-panel hidden">
@@ -257,7 +258,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}?v=2"></script>
 </body>
 
 </html>
