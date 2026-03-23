@@ -122,7 +122,9 @@ JSON Output ONLY.
                 "reason": result.get('reason', ''),
                 "domain": domain,
                 "registrar": whois_data.get('registrar', 'Unknown'),
-                "creation_date": whois_data.get('creation_date', 'Unknown')
+                "creation_date": whois_data.get('creation_date', 'Unknown'),
+                "expiration_date": whois_data.get('expiration_date', 'Unknown'),
+                "name_servers": whois_data.get('name_servers', [])
             }
 
         except Exception as e:

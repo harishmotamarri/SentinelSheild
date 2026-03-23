@@ -125,7 +125,12 @@ JSON Output ONLY. Do NOT output markdown formatting like ```json.
             return {
                 "result": label,
                 "confidence": result.get('confidence', 0.5),
-                "reason": result.get('reason', '')
+                "reason": result.get('reason', ''),
+                "site_metadata": {
+                    "title": site_data['title'],
+                    "form_count": len(site_data['forms']),
+                    "script_count": len(site_data['scripts'])
+                }
             }
 
         except requests.RequestException as re:

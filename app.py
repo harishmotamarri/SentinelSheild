@@ -10,6 +10,7 @@ from services.file_service import FileService
 from services.web_service import WebService
 from services.qr_service import QrService
 from services.domain_service import DomainService
+from services.database_service import DatabaseService
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,7 +21,7 @@ app = Flask(__name__)
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-User-Id')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
@@ -39,6 +40,7 @@ file_service = None
 web_service = None
 qr_service = None
 domain_service = None
+db_service = None
 
 # --- Initialize All Services ---
 try:
@@ -55,10 +57,41 @@ try:
     web_service = WebService(GROQ_API_KEY)
     qr_service = QrService(url_service)
     domain_service = DomainService(GROQ_API_KEY)
+    
+    # Initialize Database
+    db_service = DatabaseService()
+    
     print("Services Initialized Successfully.")
 except Exception as e:
     print(f"FATAL: Service Initialization Failed: {e}")
     traceback.print_exc()
+
+# --- Helper to Log Scans ---
+def _log_to_db(scan_type, input_data, result_dict):
+    user_id = request.headers.get('X-User-Id')
+    if user_id and db_service:
+        # Determine the best result string to store
+        # 1. Look for 'result' or 'label'
+        # 2. For QR, if it's a URL and has threat_analysis, use that result
+        result_str = result_dict.get('result') or result_dict.get('label')
+        
+        if scan_type == 'QR':
+            content = result_dict.get('content', '')
+            threat = result_dict.get('threat_analysis')
+            if threat and isinstance(threat, dict):
+                result_str = threat.get('result') or threat.get('label') or 'Link Detected'
+            else:
+                result_str = 'Decoded Content'
+            input_data = f"QR: {content}"[:500]
+
+        db_service.log_scan(
+            user_id=user_id,
+            scan_type=scan_type,
+            input_data=input_data,
+            result=result_str or 'Unknown',
+            confidence=result_dict.get('confidence') or (result_dict.get('threat_analysis', {}).get('confidence') if isinstance(result_dict.get('threat_analysis'), dict) else 0.0) or 0.0,
+            reason=result_dict.get('reason') or (result_dict.get('threat_analysis', {}).get('reason') if isinstance(result_dict.get('threat_analysis'), dict) else '') or ''
+        )
 
 # --- Page Routes ---
 
@@ -78,7 +111,78 @@ def login():
 def signup():
     return render_template('signup.html')
 
-# --- API Endpoints ---
+# --- Auth Endpoints ---
+
+@app.route('/api/auth/signup', methods=['POST'])
+def api_signup():
+    if not db_service:
+        return jsonify({'error': 'Database service unavailable'}), 503
+    
+    data = request.json
+    print(f"DEBUG: Signup request data: {data}")
+    
+    email = data.get('email')
+    password = data.get('password')
+    full_name = data.get('full_name')
+    
+    if not email or not password:
+        print(f"DEBUG: Missing email ({email}) or password ({'set' if password else 'missing'})")
+        return jsonify({'error': 'Email and password required'}), 400
+        
+    result = db_service.signup(email, password, full_name)
+    if 'error' in result:
+        return jsonify(result), 400
+    
+    # Supabase user/session objects aren't directly JSON serializable usually
+    # Return IDs and tokens
+    return jsonify({
+        "message": "Signup successful",
+        "user_id": result['user'].id,
+        "email": result['user'].email
+    })
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_login():
+    if not db_service:
+        return jsonify({'error': 'Database service unavailable'}), 503
+    
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    
+    result = db_service.login(email, password)
+    if 'error' in result:
+        print(f"DEBUG: Login failed: {result['error']}")
+        return jsonify(result), 401
+    
+    return jsonify({
+        "message": "Login successful",
+        "user_id": result['user'].id,
+        "access_token": result['session'].access_token
+    })
+
+# --- API Scan Endpoints ---
+# Consolidated dashboard stats for home charts and recent list
+@app.route('/api/dashboard-stats', methods=['GET'])
+def get_dashboard_stats_api():
+    user_id = request.headers.get('X-User-Id')
+    if not user_id:
+        return jsonify({"error": "User ID missing"}), 401
+    
+    if not db_service:
+        return jsonify({"error": "Database service not initialized"}), 500
+        
+    stats = db_service.get_dashboard_stats(user_id)
+    return jsonify(stats)
+
+@app.route('/api/user-scans', methods=['GET'])
+def get_scans():
+    user_id = request.args.get('user_id') or request.headers.get('X-User-Id')
+    if not user_id or not db_service:
+        return jsonify({'error': 'User ID missing or DB unavailable'}), 400
+    
+    scans = db_service.get_user_scans(user_id)
+    return jsonify(scans)
 
 @app.route('/api/scan-url', methods=['POST'])
 def scan_url():
@@ -95,6 +199,7 @@ def scan_url():
         if 'error' in result:
             return jsonify({'error': result['error']}), result.get('status', 500)
 
+        _log_to_db('URL', data['url'], result)
         return jsonify(result)
 
     except Exception as e:
@@ -116,7 +221,9 @@ def analyze_email():
         if not isinstance(text, str) or not text.strip():
             return jsonify({'error': 'Email text must be a non-empty string'}), 400
 
-        return jsonify(email_service.analyze_email(text))
+        result = email_service.analyze_email(text)
+        _log_to_db('Email', text[:50], result)
+        return jsonify(result)
 
     except Exception as e:
         print(f"[analyze-email] Error: {e}")
@@ -137,7 +244,9 @@ def scan_sms():
         if not isinstance(text, str) or not text.strip():
             return jsonify({'error': 'SMS text must be a non-empty string'}), 400
 
-        return jsonify(sms_service.analyze_sms(text))
+        result = sms_service.analyze_sms(text)
+        _log_to_db('SMS', text[:50], result)
+        return jsonify(result)
 
     except Exception as e:
         print(f"[scan-sms] Error: {e}")
@@ -161,6 +270,7 @@ def scan_file():
         if 'error' in result:
             return jsonify({'error': result['error']}), result.get('status', 500)
 
+        _log_to_db('File', file.filename, result)
         return jsonify(result)
 
     except Exception as e:
@@ -186,6 +296,7 @@ def inspect_web():
         if 'error' in result:
             return jsonify({'error': result['error']}), result.get('status', 500)
 
+        _log_to_db('Web', url, result)
         return jsonify(result)
 
     except Exception as e:
@@ -210,6 +321,7 @@ def scan_qr():
         if 'error' in result:
             return jsonify({'error': result['error']}), result.get('status', 500)
 
+        _log_to_db('QR', file.filename, result)
         return jsonify(result)
 
     except Exception as e:
@@ -235,6 +347,7 @@ def check_domain():
         if 'error' in result:
             return jsonify({'error': result['error']}), result.get('status', 500)
 
+        _log_to_db('Domain', domain, result)
         return jsonify(result)
 
     except Exception as e:
