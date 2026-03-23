@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import pickle
 import joblib
 import numpy as np
@@ -8,10 +9,21 @@ from urllib.parse import urlparse
 from services.feature_extractor import FeatureExtractor
 
 class UrlService:
-    def __init__(self, model_path):
+    def __init__(self, model_path, api_key=None):
         self.model_path = model_path
+        self.api_key = api_key
         self.model = None
         self._load_model()
+        
+        if self.api_key:
+            from groq import Groq
+            try:
+                self.client = Groq(api_key=self.api_key)
+            except Exception as e:
+                print(f"Failed to initialize Groq client for UrlService: {e}")
+                self.client = None
+        else:
+            self.client = None
         
         # Common safe domains whitelist
         self.WHITELIST = {
@@ -118,11 +130,45 @@ class UrlService:
             }
             
             status = label_map.get(result, f"Unknown ({result})")
+            reason = ""
+
+            # --- GROQ ENHANCEMENT ---
+            if self.client:
+                print(f"Requesting Groq AI Analysis for URL: {valid_url}")
+                try:
+                    prompt = f"""You are a cybersecurity expert.
+Analyze this URL for potential security threats: {valid_url}
+The local ML model classified it as: {status} (Confidence: {confidence:.2f})
+
+Indicators from feature extraction:
+- Suspicious extension: {'Yes' if features_df['suspicious_extension'].values[0] == 1 else 'No'}
+- Digits in domain: {features_df['count_digits_domain'].values[0]}
+- Special chars in URL: {features_df['count_special_char'].values[0]}
+
+Return a valid JSON response with one key:
+1. "reason": A short 1-2 sentence expert explanation for why this URL is {status} or if there's any other risk.
+
+JSON ONLY."""
+                    
+                    response = self.client.chat.completions.create(
+                        messages=[{"role": "user", "content": prompt}],
+                        model="llama-3.1-8b-instant",
+                        temperature=0.1,
+                        max_completion_tokens=150,
+                    )
+                    content = response.choices[0].message.content.strip().replace('```json', '').replace('```', '').strip()
+                    ai_result = json.loads(content)
+                    reason = ai_result.get('reason', '')
+                except Exception as e:
+                    print(f"Groq URL Analysis failed: {e}")
+                    reason = f"Automated analysis classified this as {status.lower()}."
+            # --------------------------
             
             return {
                 'result': status,
                 'confidence': confidence,
-                'url': valid_url
+                'url': valid_url,
+                'reason': reason
             }
 
         except ValueError as ve:

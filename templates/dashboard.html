@@ -118,20 +118,13 @@
                     <aside class="scan-sidebar">
                         <div class="sidebar-label">TOOLS</div>
                         <ul class="tool-list">
-                            <li class="tool-item active" onclick="openTool(this, 'url')"><i
-                                    class="fa-solid fa-link"></i> URL Scanner</li>
-                            <li class="tool-item" onclick="openTool(this, 'email')"><i
-                                    class="fa-regular fa-envelope"></i> Email Analyzer</li>
-                            <li class="tool-item" onclick="openTool(this, 'sms')"><i
-                                    class="fa-regular fa-comment-dots"></i> SMS Detector</li>
-                            <li class="tool-item" onclick="openTool(this, 'file')"><i
-                                    class="fa-regular fa-file-code"></i> File Scanner</li>
-                            <li class="tool-item" onclick="openTool(this, 'web')"><i class="fa-solid fa-globe"></i>
-                                Website Inspector</li>
-                            <li class="tool-item" onclick="openTool(this, 'qr')"><i class="fa-solid fa-qrcode"></i> QR
-                                Scanner</li>
-                            <li class="tool-item" onclick="openTool(this, 'domain')"><i
-                                    class="fa-solid fa-magnifying-glass"></i> Domain Check</li>
+                            <li class="tool-item active" onclick="openTool(this, 'url')"><i class="fa-solid fa-link"></i> URL Scanner</li>
+                            <li class="tool-item" onclick="openTool(this, 'domain')"><i class="fa-solid fa-magnifying-glass"></i> Domain Check</li>
+                            <li class="tool-item" onclick="openTool(this, 'web')"><i class="fa-solid fa-globe"></i> Website Inspector</li>
+                            <li class="tool-item" onclick="openTool(this, 'file')"><i class="fa-regular fa-file-code"></i> File Scanner</li>
+                            <li class="tool-item" onclick="openTool(this, 'email')"><i class="fa-regular fa-envelope"></i> Email Analyzer</li>
+                            <li class="tool-item" onclick="openTool(this, 'sms')"><i class="fa-regular fa-comment-dots"></i> SMS Detector</li>
+                            <li class="tool-item" onclick="openTool(this, 'qr')"><i class="fa-solid fa-qrcode"></i> QR Scanner</li>
                         </ul>
                     </aside>
 
@@ -164,20 +157,26 @@
                             <h2><i class="fa-regular fa-comment-dots"></i> SMS/Message Scam Detector</h2>
                             <p class="text-muted mb-4">Detect scam patterns, urgency tactics, and suspicious links in
                                 messages</p>
-                            <textarea class="dark-input mb-3" rows="4"
+                            <textarea id="sms-input" class="dark-input mb-3" rows="4"
                                 placeholder="Paste the SMS or message content here..."></textarea>
-                            <button class="btn btn-accent full-width">Analyze Message</button>
+                            <button id="sms-scan-btn" class="btn btn-accent full-width">Analyze Message</button>
+                            <div id="sms-result" class="mt-4 hidden"></div>
                         </div>
 
                         <div id="tool-file" class="tool-panel hidden">
                             <h2><i class="fa-regular fa-file-code"></i> File Malware Analyzer</h2>
                             <p class="text-muted mb-4">Analyze files for malware signatures and suspicious patterns</p>
-                            <div class="upload-zone">
+                            
+                            <input type="file" id="file-input" style="display: none;" accept=".txt,.py,.js,.html,.css,.json,.csv,.md,.sh,.bat,.ps1,.pdf,.docx">
+                            
+                            <div class="upload-zone" id="file-upload-zone" onclick="document.getElementById('file-input').click()">
                                 <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                                <p>Click to upload or drag and drop</p>
-                                <span class="text-small">PDF, DOCX, EXE, ZIP, APK (max 10MB)</span>
+                                <p id="file-upload-text">Click to upload or drag and drop</p>
+                                <span class="text-small">TXT, PDF, DOCX, Scripts (max 10MB)</span>
                             </div>
-                            <button class="btn btn-accent full-width mt-3">Analyze File</button>
+                            <button id="file-scan-btn" class="btn btn-accent full-width mt-3">Analyze File</button>
+                            
+                            <div id="file-result" class="mt-4 hidden"></div>
                         </div>
 
                         <div id="tool-web" class="tool-panel hidden">
@@ -185,21 +184,26 @@
                             <p class="text-muted mb-4">Analyze website content for fake login forms, hidden elements,
                                 and suspicious scripts</p>
                             <div class="input-wrapper">
-                                <input type="text" class="dark-input"
+                                <input type="text" id="web-input" class="dark-input"
                                     placeholder="Enter website URL to inspect (e.g., https://example.com)">
-                                <button class="btn btn-accent">Inspect Website</button>
+                                <button id="web-scan-btn" class="btn btn-accent">Inspect Website</button>
                             </div>
+                            <div id="web-result" class="mt-4 hidden"></div>
                         </div>
 
                         <div id="tool-qr" class="tool-panel hidden">
                             <h2><i class="fa-solid fa-qrcode"></i> QR Code Threat Scanner</h2>
                             <p class="text-muted mb-4">Extract and analyze URLs or content embedded in QR codes</p>
-                            <div class="upload-zone">
+                            
+                            <input type="file" id="qr-input" style="display: none;" accept="image/*">
+                            
+                            <div class="upload-zone" id="qr-upload-zone" onclick="document.getElementById('qr-input').click()">
                                 <i class="fa-regular fa-image"></i>
-                                <p>Click to upload QR code image</p>
+                                <p id="qr-upload-text">Click to upload QR code image</p>
                                 <span class="text-small">PNG, JPG, or WEBP</span>
                             </div>
-                            <button class="btn btn-accent full-width mt-3">Scan QR Code</button>
+                            <button id="qr-scan-btn" class="btn btn-accent full-width mt-3">Scan QR Code</button>
+                            <div id="qr-result" class="mt-4 hidden"></div>
                         </div>
 
                         <div id="tool-domain" class="tool-panel hidden">
@@ -207,10 +211,11 @@
                             <p class="text-muted mb-4">Check domain age, registrar information, and reputation
                                 indicators</p>
                             <div class="input-wrapper">
-                                <input type="text" class="dark-input"
+                                <input type="text" id="domain-input" class="dark-input"
                                     placeholder="Enter domain name (e.g., example.com)">
-                                <button class="btn btn-accent">Check Domain</button>
+                                <button id="domain-check-btn" class="btn btn-accent">Check Domain</button>
                             </div>
+                            <div id="domain-result" class="mt-4 hidden"></div>
                         </div>
 
                     </div>

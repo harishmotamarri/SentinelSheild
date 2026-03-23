@@ -1,4 +1,4 @@
-import os
+import json
 import pickle
 import joblib
 import scipy.sparse
@@ -6,12 +6,23 @@ import numpy as np
 from services.feature_extractor import EmailFeatureExtractor
 
 class EmailService:
-    def __init__(self, model_path, vectorizer_path):
+    def __init__(self, model_path, vectorizer_path, api_key=None):
         self.model_path = model_path
         self.vectorizer_path = vectorizer_path
+        self.api_key = api_key
         self.model = None
         self.vectorizer = None
         self._load_models()
+
+        if self.api_key:
+            from groq import Groq
+            try:
+                self.client = Groq(api_key=self.api_key)
+            except Exception as e:
+                print(f"Failed to initialize Groq client for EmailService: {e}")
+                self.client = None
+        else:
+            self.client = None
 
     def _load_models(self):
         print("Loading email detection models...")
@@ -92,12 +103,44 @@ class EmailService:
                 # Fallback if no proba
                 risk_score = 100.0 if label == "phishing" else 0.0
                 confidence = 1.0
+            
+            reason = ""
+            # --- GROQ ENHANCEMENT ---
+            if self.client:
+                print(f"Requesting Groq AI Analysis for Email Content")
+                try:
+                    prompt = f"""You are a cybersecurity expert specializing in phishing and social engineering.
+Analyze the following email content for potential security threats.
+The local ML model classified it as: {label} (Confidence: {confidence:.2f})
+
+--- EMAIL CONTENT ---
+{text[:2000]}
+
+Return a valid JSON response with one key:
+1. "reason": A short 1-2 sentence expert explanation for why this email is {label} or identifying specific deceptive tactics used (e.g., urgency, link masking, authority impersonation).
+
+JSON ONLY."""
+                    
+                    response = self.client.chat.completions.create(
+                        messages=[{"role": "user", "content": prompt}],
+                        model="llama-3.1-8b-instant",
+                        temperature=0.1,
+                        max_completion_tokens=150,
+                    )
+                    content = response.choices[0].message.content.strip().replace('```json', '').replace('```', '').strip()
+                    ai_result = json.loads(content)
+                    reason = ai_result.get('reason', '')
+                except Exception as e:
+                    print(f"Groq Email Analysis failed: {e}")
+                    reason = f"Automated analysis classified this as {label}."
+            # --------------------------
                 
             return {
                 "label": label,
                 "confidence": round(confidence, 4),
                 "risk_score": round(risk_score, 2),
-                "engineered_features": features
+                "engineered_features": features,
+                "reason": reason
             }
             
         except Exception as e:

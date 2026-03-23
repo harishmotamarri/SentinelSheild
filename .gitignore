@@ -8,8 +8,11 @@ env/
 venv/
 .env
 
-# Large Data Files
-model/url.pkl
+# IDE
+.vscode/
+.idea/
+
+# Large ML Model Files
 *.pkl
 *.h5
 *.model
@@ -18,12 +21,17 @@ model/url.pkl
 .DS_Store
 Thumbs.db
 
-# Debug/Temp files
+# Debug / Test / Temp files
 debug_*.py
 test_*.py
 test_*.txt
+test_*.png
+test_*.docx
 predictions*.txt
 *_output.txt
+*_output_*.txt
 classes.txt
 features.txt
 model_type.txt
+generate_test_qr.py
+create_test_doc.py
