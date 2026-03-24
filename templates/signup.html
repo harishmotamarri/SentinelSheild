@@ -6,16 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinel Shield - Sign Up</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>
 
+    <a href="/" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Home</a>
+
     <div id="auth-view" class="auth-wrapper">
-        <div class="auth-card">
+        <div class="auth-card animate-fade-in-up">
             <div class="auth-header">
-                <i class="fa-solid fa-shield-halved"></i> Sentinel Shield
+                <img src="{{ url_for('static', filename='img/logo.webp') }}" alt="Sentinel Shield Logo" class="auth-logo">
+                <div class="auth-brand">Sentinel Shield</div>
             </div>
             <h2>Create Account</h2>
             <p class="auth-sub">Get started with threat detection</p>
@@ -52,6 +56,17 @@
     </button>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <!-- Signup Success Modal -->
+    <div id="signup-success-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <i class="fa-solid fa-envelope-circle-check"></i>
+            <h3>Verify Your Email</h3>
+            <p>A confirmation email has been sent to your inbox. Please verify your account to continue and revisit the login page.</p>
+            <button onclick="window.location.href='/login.html'" class="btn btn-primary btn-block">Go to Login</button>
+        </div>
+    </div>
 </body>
 
 </html>

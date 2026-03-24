@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinel Shield - Login</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -12,10 +13,13 @@
 
 <body>
 
+    <a href="/" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Home</a>
+
     <div id="auth-view" class="auth-wrapper">
-        <div class="auth-card">
+        <div class="auth-card animate-fade-in-up">
             <div class="auth-header">
-                <i class="fa-solid fa-shield-halved"></i> Sentinel Shield
+                <img src="{{ url_for('static', filename='img/logo.webp') }}" alt="Sentinel Shield Logo" class="auth-logo">
+                <div class="auth-brand">Sentinel Shield</div>
             </div>
             <h2>Welcome Back</h2>
             <p class="auth-sub">Sign in to your account to continue</p>

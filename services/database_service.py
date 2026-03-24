@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta
 from supabase import create_client, Client
 
 class DatabaseService:
@@ -100,14 +101,24 @@ class DatabaseService:
             return {}
             
         try:
+            # Get user profile info
+            profile_res = self.client.table('profiles').select("full_name").eq('id', user_id).single().execute()
+            user_name = profile_res.data.get('full_name', 'User') if profile_res.data else 'User'
+
             # Get user scans for stats Calculation
-            res = self.client.table('scans').select("scan_type, result").eq('user_id', user_id).execute()
+            res = self.client.table('scans').select("scan_type, result, created_at").eq('user_id', user_id).execute()
             scans = res.data
             
             total = len(scans)
             threats = 0
             safe = 0
             
+            # Find earliest scan for "Joined" date if profile created_at is not reliable or available
+            joined_date = "Mar 2026" # Default
+            if scans:
+                earliest = min([s.get('created_at') for s in scans if s.get('created_at')])
+                joined_date = datetime.fromisoformat(earliest.split('+')[0]).strftime('%b %Y')
+
             type_counts = {}
             # Initialize common types for cleaner charts
             for t in ['URL', 'Email', 'SMS', 'File', 'Web', 'QR', 'Domain']:
@@ -133,6 +144,20 @@ class DatabaseService:
                     safe += 1
                     threat_counts["Safe"] += 1
             
+            # 7-Day Activity Logic
+            today = datetime.now()
+            activity_counts = {}
+            for i in range(6, -1, -1):
+                day = (today - timedelta(days=i)).strftime('%Y-%m-%d')
+                activity_counts[day] = 0
+            
+            for s in scans:
+                created_at = s.get('created_at')
+                if created_at:
+                    day_str = created_at.split('T')[0]
+                    if day_str in activity_counts:
+                        activity_counts[day_str] += 1
+
             # Get recent scans for the "Recent Scans" card
             recent_res = self.client.table('scans').select("*").eq('user_id', user_id).order('created_at', desc=True).limit(5).execute()
             recent_scans = recent_res.data
@@ -140,12 +165,15 @@ class DatabaseService:
             print(f"DEBUG: Dashboard Stats for {user_id}: Found {total} total scans, {len(recent_scans)} recent")
             
             return {
+                "user_name": user_name,
+                "joined_date": joined_date,
                 "total_scans": total,
                 "threats_detected": threats,
                 "safe_results": safe,
                 "detection_rate": round((threats / total * 100), 1) if total > 0 else 0,
                 "type_breakdown": type_counts,
                 "threat_breakdown": threat_counts,
+                "activity_breakdown": activity_counts,
                 "recent_scans": recent_scans
             }
         except Exception as e:

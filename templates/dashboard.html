@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -16,15 +18,18 @@
 
         <nav class="navbar">
             <div class="nav-left">
-                <div class="logo">
-                    <i class="fa-solid fa-shield-halved"></i> Sentinel Shield
-                </div>
-                <div class="nav-links">
-                    <button class="nav-item active" onclick="switchTab('dashboard')">Dashboard</button>
-                    <button class="nav-item" onclick="switchTab('scan')">Scan</button>
-                    <button class="nav-item" onclick="switchTab('history')">History</button>
-                </div>
+                <a href="/" class="logo">
+                    <img src="static/img/logo.webp" alt="L" width="24" height="24">
+                    <span class="brand-sentinel">Sentinel</span><span class="brand-shield">Shield</span>
+                </a>
             </div>
+            
+            <div class="nav-links">
+                <button class="nav-item active" onclick="switchTab('dashboard')"><i class="fa-solid fa-gauge-high"></i> Dashboard</button>
+                <button class="nav-item" onclick="switchTab('scan')"><i class="fa-solid fa-shield-halved"></i> Scan</button>
+                <button class="nav-item" onclick="switchTab('history')"><i class="fa-solid fa-clock-rotate-left"></i> History</button>
+            </div>
+
             <div class="nav-right">
                 <div class="user-menu-container" style="display:flex; align-items:center; gap:15px;">
                     <button class="btn-icon" onclick="toggleTheme()"
@@ -41,6 +46,8 @@
                         </div>
                         <a href="#" onclick="switchTab('dashboard')"><i class="fa-solid fa-gauge-high"></i>
                             Dashboard</a>
+                        <a href="#" onclick="switchTab('profile')"><i class="fa-solid fa-user-gear"></i>
+                            Profile Settings</a>
                         <a href="#" onclick="handleLogout()" class="text-red"><i
                                 class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out</a>
                     </div>
@@ -51,7 +58,7 @@
         <main class="main-content">
 
             <section id="tab-dashboard" class="tab-content active">
-                <div class="page-header">
+                <div class="page-header animate-fade-in">
                     <div>
                         <h1>Dashboard</h1>
                         <p class="text-muted">Welcome back! Here's your security overview.</p>
@@ -60,7 +67,7 @@
                             class="fa-solid fa-arrow-right"></i></button>
                 </div>
 
-                <div class="stats-row">
+                <div class="stats-row animate-slide-up">
                     <div class="stat-card">
                         <div class="stat-text">
                             <span>Total Scans</span>
@@ -91,7 +98,7 @@
                     </div>
                 </div>
 
-                <div class="charts-row">
+                <div class="charts-row animate-slide-up" style="animation-delay: 0.1s;">
                     <div class="chart-card">
                         <h3>Scans by Type</h3>
                         <div class="chart-container">
@@ -104,9 +111,15 @@
                             <canvas id="threatChart"></canvas>
                         </div>
                     </div>
+                    <div class="chart-card full-width">
+                        <h3>Security Activity (Last 7 Days)</h3>
+                        <div class="chart-container activity-chart">
+                            <canvas id="activityChart"></canvas>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="recent-scans-card">
+                <div class="recent-scans-card animate-slide-up" style="animation-delay: 0.2s;">
                     <div class="card-header">
                         <h3>Recent Scans</h3>
                         <button class="btn-text" onclick="switchTab('history')">View All</button>
@@ -117,6 +130,110 @@
                             No scans yet. Start by scanning a URL, email, or file.
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <section id="tab-profile" class="tab-content hidden">
+                <div class="page-header animate-fade-in">
+                    <div>
+                        <h1>User Profile</h1>
+                        <p class="text-muted">Manage your account and view your security score.</p>
+                    </div>
+                </div>
+
+                <div class="profile-layout animate-slide-up" style="animation-delay: 0.1s;">
+                    <div class="profile-main">
+                        <div class="profile-card">
+                            <div class="profile-cover"></div>
+                            <div class="profile-info">
+                                <div class="profile-avatar-container">
+                                    <div class="profile-avatar" id="profile-avatar-initials">HS</div>
+                                </div>
+                                <div class="profile-details">
+                                    <h2 id="profile-name">Harish Motamarri</h2>
+                                    <p class="profile-email" id="profile-email">motamariharish@gmail.com</p>
+                                    <div class="profile-badges">
+                                        <span class="badge bg-blue"><i class="fa-solid fa-user-shield"></i> Verified
+                                            User</span>
+                                        <span class="badge bg-green"><i class="fa-solid fa-calendar-days"></i> Joined <span
+                                                id="profile-joined">Mar 2024</span></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="profile-stats-grid">
+                            <div class="card p-4">
+                                <h3>Account Security</h3>
+                                <div class="security-score">
+                                    <div class="score-circle">
+                                        <svg viewBox="0 0 36 36" class="circular-chart cyan">
+                                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                            <path class="circle" stroke-dasharray="85, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                            <text x="18" y="20.35" class="percentage">85%</text>
+                                        </svg>
+                                    </div>
+                                    <div class="score-text">
+                                        <h4>Security Health</h4>
+                                        <p>Your account is well-protected. Keep up the good work!</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card p-4">
+                                <h3>Recent Activity Summary</h3>
+                                <div class="activity-summary">
+                                    <div class="activity-item">
+                                        <div class="activity-icon bg-blue"><i class="fa-solid fa-magnifying-glass"></i>
+                                        </div>
+                                        <div class="activity-text">
+                                            <p>Total Scans Performed</p>
+                                            <strong id="profile-scans-count">0</strong>
+                                        </div>
+                                    </div>
+                                    <div class="activity-item">
+                                        <div class="activity-icon bg-red"><i class="fa-solid fa-triangle-exclamation"></i>
+                                        </div>
+                                        <div class="activity-text">
+                                            <p>Threats Mitigated</p>
+                                            <strong id="profile-threats-count">0</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <aside class="profile-sidebar">
+                        <div class="profile-settings-card">
+                            <h3>Account Settings</h3>
+                            <ul class="settings-list">
+                                <li>
+                                    <button class="settings-item">
+                                        <i class="fa-solid fa-key"></i>
+                                        <span>Change Password</span>
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="settings-item">
+                                        <i class="fa-solid fa-bell"></i>
+                                        <span>Notifications</span>
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="settings-item">
+                                        <i class="fa-solid fa-moon"></i>
+                                        <span>Display Theme</span>
+                                    </button>
+                                </li>
+                                <li class="mt-4 pt-4 border-top">
+                                    <button class="settings-item text-red" onclick="handleLogout()">
+                                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                                        <span>Sign Out</span>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </aside>
                 </div>
             </section>
 
@@ -240,52 +357,105 @@
             </section>
 
             <section id="tab-history" class="tab-content hidden">
-                <div class="page-header">
+                <div class="page-header" style="margin-bottom: 2.5rem;">
                     <div>
-                        <h1>Scan History</h1>
-                        <p class="text-muted">View and search your past security scans</p>
-                    </div>
-                    <div style="display:flex; gap:10px;">
-                        <input type="text" id="history-search" class="dark-input" placeholder="Search input data..."
-                            style="padding: 0.5rem 1rem; width: 250px;">
-                        <select id="history-type-filter" class="dark-input"
-                            style="padding: 0.5rem 1rem; width: 150px; cursor: pointer;">
-                            <option value="all">All Types</option>
-                            <option value="URL">URL Scans</option>
-                            <option value="Email">Email Scans</option>
-                            <option value="SMS">SMS Scans</option>
-                            <option value="File">File Scans</option>
-                            <option value="Web">Web Inspector</option>
-                            <option value="QR">QR Scanner</option>
-                            <option value="Domain">Domain Check</option>
-                        </select>
-                        <button class="btn btn-dark-outline" onclick="fetchHistory()">
-                            <i class="fa-solid fa-sync"></i> Refresh
-                        </button>
+                        <h1 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em;">Security Intelligence History</h1>
+                        <p class="text-muted" style="font-size: 1rem; margin-top: 0.5rem;">Audit and manage your historical asset scans</p>
+                        <div class="history-header-accent"></div>
                     </div>
                 </div>
 
-                <div class="history-container" id="history-container">
-                    <div class="table-header">
-                        <span>Type</span>
-                        <span>Input</span>
-                        <span>Result</span>
-                        <span>Confidence</span>
-                        <span>Risk Level</span>
+                <div class="history-command-bar">
+                    <div class="premium-search-container">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="history-search" class="premium-search-input" placeholder="Search fingerprints, URLs, or filenames...">
                     </div>
+                    
+                    <select id="history-type-filter" class="premium-filter-select">
+                        <option value="all">Global Filter (All)</option>
+                        <option value="URL">URL Intelligence</option>
+                        <option value="File">Malware Analysis</option>
+                        <option value="Email">Email Forensics</option>
+                        <option value="SMS">SMS Inspection</option>
+                        <option value="QR">QR Code Audit</option>
+                        <option value="Domain">Domain Assets</option>
+                        <option value="Web">Website Audit</option>
+                    </select>
 
-                    <div id="history-loading" class="loading-state hidden">
+                    <button class="btn btn-dark-outline" onclick="fetchHistory()" style="border-radius: 12px; height: 46px; display: flex; align-items: center; gap: 0.75rem; white-space: nowrap;">
+                        <i class="fa-solid fa-rotate"></i> Sync History
+                    </button>
+                </div>
+
+                <div class="history-container" id="history-container" style="background: transparent; border: none; box-shadow: none; padding: 0;">
+                    <!-- Loading State -->
+                    <div id="history-loading" class="loading-state hidden" style="padding: 4rem 0;">
                         <div class="spinner"></div>
-                        <p>Loading...</p>
+                        <p style="margin-top: 1.5rem; color: var(--text-muted); font-weight: 500;">Retrieving Historical Data...</p>
                     </div>
 
+                    <!-- Empty State -->
                     <div id="history-empty" class="empty-history hidden">
-                        No scans found
+                        <div class="empty-history-premium">
+                            <i class="fa-solid fa-box-open"></i>
+                            <h3>No Records Found</h3>
+                            <p>You haven't performed any security scans yet. Start your first inspection from the Security Modules tab.</p>
+                        </div>
                     </div>
+                    
+                    <!-- Cards will be injected here by script.js -->
                 </div>
             </section>
 
         </main>
+    </div>
+
+    <!-- Scan Detail Modal -->
+    <div id="scan-detail-modal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeScanModal()"></div>
+        <div class="scan-detail-modal-content">
+            <div class="modal-premium-header">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 1.5rem;">
+                        <div id="modal-type-icon" class="modal-icon-box" style="width: 60px; height: 60px; font-size: 1.8rem; background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: var(--accent);">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <h2 id="modal-title" style="font-size: 1.8rem; font-weight: 900; color: #fff; letter-spacing: -0.03em;">Forensic Analysis Report</h2>
+                            <p id="modal-date" style="font-size: 0.85rem; color: var(--accent); font-weight: 600; opacity: 0.8;"></p>
+                        </div>
+                    </div>
+                    <button class="close-btn" onclick="closeScanModal()" style="background: rgba(255,255,255,0.05); border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; transition: all 0.3s; font-size: 1.2rem;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-premium-body">
+                <div style="margin-bottom: 2.5rem;">
+                    <label class="expert-tag">Intelligence Target (Inbound Signal)</label>
+                    <div id="modal-input" style="background: rgba(0,0,0,0.4); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-dark); word-break: break-all; font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: var(--accent);"></div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem;">
+                    <div class="modal-stat-card">
+                        <div id="modal-result" class="modal-stat-value"></div>
+                        <div class="modal-stat-label">System Verdict</div>
+                    </div>
+                    <div class="modal-stat-card">
+                        <div id="modal-confidence" class="modal-stat-value"></div>
+                        <div class="modal-stat-label">AI Certainty</div>
+                    </div>
+                </div>
+
+                <div class="ai-reasoning-premium">
+                    <p id="modal-reason" style="line-height: 1.8; color: #cbd5e1; font-size: 1rem;"></p>
+                </div>
+                
+                <div style="margin-top: 2.5rem; text-align: center;">
+                    <button class="btn btn-accent" onclick="closeScanModal()" style="padding: 0.8rem 2.5rem; border-radius: 12px; font-weight: 700;">Acknowledge & Close</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="toast" class="toast hidden">

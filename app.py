@@ -11,6 +11,7 @@ from services.web_service import WebService
 from services.qr_service import QrService
 from services.domain_service import DomainService
 from services.database_service import DatabaseService
+from services.whatsapp_service import WhatsAppService
 
 # Load environment variables from .env file
 load_dotenv()
@@ -38,9 +39,9 @@ email_service = None
 sms_service = None
 file_service = None
 web_service = None
-qr_service = None
 domain_service = None
 db_service = None
+whatsapp_service = None
 
 # --- Initialize All Services ---
 try:
@@ -60,6 +61,24 @@ try:
     
     # Initialize Database
     db_service = DatabaseService()
+
+    # WhatsApp Integration
+    WA_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN")
+    WA_PHONE_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+    WA_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN")
+    
+    if WA_ACCESS_TOKEN and WA_PHONE_ID and WA_VERIFY_TOKEN:
+        scanners = {
+            'url': url_service,
+            'file': file_service,
+            'sms': sms_service,
+            'qr': qr_service,
+            'domain': domain_service
+        }
+        whatsapp_service = WhatsAppService(WA_ACCESS_TOKEN, WA_PHONE_ID, WA_VERIFY_TOKEN, scanners)
+        print("WhatsApp Service Initialized.")
+    else:
+        print("WARNING: WhatsApp credentials missing. WhatsApp bot disabled.")
     
     print("Services Initialized Successfully.")
 except Exception as e:
@@ -69,6 +88,7 @@ except Exception as e:
 # --- Helper to Log Scans ---
 def _log_to_db(scan_type, input_data, result_dict):
     user_id = request.headers.get('X-User-Id')
+    print(f"DEBUG: Attempting to log {scan_type} scan for user: {user_id}")
     if user_id and db_service:
         # Determine the best result string to store
         # 1. Look for 'result' or 'label'
@@ -353,6 +373,20 @@ def check_domain():
     except Exception as e:
         print(f"[check-domain] Error: {e}")
         return jsonify({'error': f"Domain check failed: {str(e)}"}), 500
+
+# --- WhatsApp Webhook ---
+
+@app.route('/api/whatsapp/webhook', methods=['GET'])
+def whatsapp_verify():
+    if not whatsapp_service:
+        return "Service Not Available", 503
+    return whatsapp_service.verify_webhook(request.args)
+
+@app.route('/api/whatsapp/webhook', methods=['POST'])
+def whatsapp_webhook():
+    if not whatsapp_service:
+        return "Service Not Available", 503
+    return whatsapp_service.handle_webhook(request.json)
 
 
 if __name__ == '__main__':

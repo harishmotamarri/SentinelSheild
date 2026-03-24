@@ -8,78 +8,295 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 
 <body>
 
     <nav class="navbar">
-        <div class="logo">
-            <i class="fa-solid fa-shield-halved"></i> Sentinel Shield
+        <div class="container">
+            <a href="/" class="logo">
+                <img src="{{ url_for('static', filename='img/logo.webp') }}" alt="Logo" style="height: 32px;">
+                <span class="brand-sentinel">Sentinel</span><span class="brand-shield">Shield</span>
+            </a>
+            <div class="nav-links">
+                <a href="#features" class="nav-item">Features</a>
+                <a href="#how-it-works" class="nav-item">How It Works</a>
+                <a href="{{ url_for('dashboard') }}" class="nav-item">Dashboard</a>
+            </div>
+            <div class="nav-right">
+                <button onclick="toggleTheme()" class="btn-icon"
+                    style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer; margin-right: 1rem;">
+                    <i id="theme-icon" class="fa-solid fa-sun"></i>
+                </button>
+                <a href="{{ url_for('login') }}" class="btn btn-secondary">Sign In</a>
+                <a href="{{ url_for('signup') }}" class="btn btn-primary">Get Started</a>
+            </div>
         </div>
-        <button class="btn-icon" onclick="toggleTheme()"
-            style="background:none; border:none; color:inherit; font-size:1.2rem; cursor:pointer;">
-            <i id="theme-icon" class="fa-solid fa-sun"></i>
-        </button>
     </nav>
 
-    <main id="landing-page" class="view active">
-        <section class="hero">
-            <div class="hero-icon">
-                <i class="fa-regular fa-shield"></i> <svg viewBox="0 0 24 24" width="60" height="60" fill="none"
-                    stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                </svg>
-            </div>
-            <h1>Unified Cyber Threat<br><span class="highlight">Detection Platform</span></h1>
-            <p class="subtitle">AI-powered security scanning for URLs, emails, messages, files, websites, QR codes, and
-                domains. Protect yourself from phishing, malware, and scams.</p>
+    <main id="landing-page">
+        <!-- Hero Section -->
+        <section class="hero animate-fade-in-up">
+            <div class="container">
+                <div class="hero-badge"
+                    style="display:inline-block; padding: 0.6rem 1.4rem; background:rgba(6, 182, 212, 0.1); border-radius: 100px; color: var(--accent); font-size: 0.9rem; font-weight: 600; margin-bottom: 2.5rem; border: 1px solid rgba(6, 182, 212, 0.2);">
+                    <i class="fa-solid fa-shield-halved"></i> AI-Powered Protection
+                </div>
+                <h1>Unified Cyber Threat<br><span class="highlight">Detection Platform</span></h1>
+                <p class="subtitle">Next-generation security scanning for URLs, emails, messages, files, and domains.
+                    Protect your digital assets from phishing, malware, and sophisticated scams with real-time AI
+                    analysis.</p>
 
-            <div class="cta-group">
-                <a href="{{ url_for('login') }}" class="btn btn-primary">Sign In</a>
-                <button class="btn btn-secondary">Get Started</button>
+                <div class="cta-group">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary" style="padding: 1.2rem 3rem;">
+                        Scan Now <i class="fa-solid fa-arrow-right"></i>
+                    </a>
+                    <a href="{{ url_for('signup') }}" class="btn btn-secondary" style="padding: 1.2rem 3rem;">Get
+                        Started</a>
+                </div>
             </div>
         </section>
 
-        <section class="features">
-            <h2>7 Security Modules</h2>
-            <div class="grid-container">
-                <div class="card">
-                    <div class="icon-box"><i class="fa-solid fa-expand"></i></div>
-                    <h3>URL Scanner</h3>
-                    <p>Detect phishing & malicious links</p>
+        <!-- Security Modules -->
+        <section id="features" class="features">
+            <div class="container">
+                <div class="text-center mb-6">
+                    <h2 style="font-size: 3rem; margin-bottom: 1.5rem; font-weight: 800;">Security Modules</h2>
+                    <p class="text-muted" style="font-size: 1.1rem;">Comprehensive protection across all your digital
+                        channels</p>
                 </div>
-                <div class="card">
-                    <div class="icon-box"><i class="fa-regular fa-envelope"></i></div>
-                    <h3>Email Analyzer</h3>
-                    <p>Identify email threats</p>
-                </div>
-                <div class="card">
-                    <div class="icon-box"><i class="fa-regular fa-message"></i></div>
-                    <h3>Message Check</h3>
-                    <p>Analyze suspicious messages</p>
-                </div>
-                <div class="card">
-                    <div class="icon-box"><i class="fa-regular fa-file-lines"></i></div>
-                    <h3>File Scanner</h3>
-                    <p>Scan files for malware</p>
-                </div>
-                <div class="card">
-                    <div class="icon-box"><i class="fa-solid fa-globe"></i></div>
-                    <h3>Website Audit</h3>
-                    <p>Full website security scan</p>
-                </div>
-                <div class="card">
-                    <div class="icon-box"><i class="fa-solid fa-qrcode"></i></div>
-                    <h3>QR Scanner</h3>
-                    <p>Decode & verify QR codes</p>
-                </div>
-                <div class="card">
-                    <div class="icon-box"><i class="fa-solid fa-magnifying-glass"></i></div>
-                    <h3>Domain Check</h3>
-                    <p>WHOIS & reputation lookup</p>
+                <div class="grid-container">
+                    <div class="card">
+                        <div class="icon-box"><i class="fa-solid fa-link"></i></div>
+                        <h3>URL Scanner</h3>
+                        <p>Advanced detection of phishing, malicious redirects, and dangerous links before you click.
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="icon-box"><i class="fa-solid fa-envelope-open-text"></i></div>
+                        <h3>Email Analyzer</h3>
+                        <p>Scan headers, links, and attachments to identify sophisticated business email compromise
+                            (BEC).</p>
+                    </div>
+                    <div class="card">
+                        <div class="icon-box"><i class="fa-solid fa-comment-dots"></i></div>
+                        <h3>Message Check</h3>
+                        <p>Instantly analyze SMS and chat messages for suspicious patterns and social engineering.</p>
+                    </div>
+                    <div class="card">
+                        <div class="icon-box"><i class="fa-solid fa-file-shield"></i></div>
+                        <h3>File Scanner</h3>
+                        <p>Multi-engine malware analysis for documents, executables, and archives in seconds.</p>
+                    </div>
+                    <div class="card">
+                        <div class="icon-box"><i class="fa-solid fa-earth-americas"></i></div>
+                        <h3>Website Audit</h3>
+                        <p>Comprehensive security health check for websites, including SSL, reputation, and
+                            vulnerabilities.</p>
+                    </div>
+                    <div class="card">
+                        <div class="icon-box"><i class="fa-solid fa-qrcode"></i></div>
+                        <h3>QR Scanner</h3>
+                        <p>Safely decode business and personal QR codes to verify destination URLs before opening.</p>
+                    </div>
                 </div>
             </div>
         </section>
+
+        <!-- How It Works -->
+        <section id="how-it-works" class="how-it-works">
+            <div class="container">
+                <div class="text-center mb-6">
+                    <h2 style="font-size: 3rem; margin-bottom: 1.5rem; font-weight: 800;">How It Works</h2>
+                    <p class="text-muted" style="font-size: 1.1rem;">Four simple steps to total security</p>
+                </div>
+                <div class="steps-grid">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <h3>Input Data</h3>
+                        <p class="text-muted">Enter URL, upload file, or paste message for analysis.</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <h3>AI Analysis</h3>
+                        <p class="text-muted">Our multi-layer engines analyze patterns and behavior.</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <h3>Threat Scoring</h3>
+                        <p class="text-muted">Instant risk assessment and danger level generation.</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <h3>Detailed Report</h3>
+                        <p class="text-muted">Get actionable insights and clear security recommendations.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Why Sentinel Shield -->
+        <section class="why-us">
+            <div class="container">
+                <div class="text-center mb-6">
+                    <h2 style="font-size: 3rem; margin-bottom: 1.5rem; font-weight: 800;">Why Sentinel Shield</h2>
+                    <p class="text-muted" style="font-size: 1.1rem;">The future of proactive cyber defense</p>
+                </div>
+                <div class="features-list">
+                    <div class="feature-item">
+                        <i class="fa-solid fa-bolt"></i>
+                        <div>
+                            <h4>AI Threat Detection</h4>
+                            <p class="text-muted">Machine learning models that adapt to new threats in real-time.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fa-solid fa-gauge-high"></i>
+                        <div>
+                            <h4>Real-time Analysis</h4>
+                            <p class="text-muted">Zero-latency scanning for immediate protection when you need it.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <div>
+                            <h4>Multi-layer Scanning</h4>
+                            <p class="text-muted">Combining hundreds of security data sources for 99.9% accuracy.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Preview -->
+        <section class="dashboard-preview">
+            <div class="container">
+                <div class="text-center mb-6">
+                    <h2 style="font-size: 3rem; margin-bottom: 1.5rem; font-weight: 800;">Professional Dashboard</h2>
+                    <p class="text-muted" style="font-size: 1.1rem;">Take control of your security with our intuitive
+                        interface</p>
+                </div>
+                <div class="mockup-container">
+                    <div class="mockup-content">
+                        <div
+                            style="display: flex; gap: 2rem; justify-content: center; align-items: center; flex-wrap: wrap;">
+                            <div
+                                style="background: rgba(255,255,255,0.03); padding: 2rem; border-radius: 20px; border: 1px solid var(--border); width: 240px;">
+                                <i class="fa-solid fa-shield-virus"
+                                    style="font-size: 2.5rem; color: var(--accent); margin-bottom: 1rem;"></i>
+                                <h5 style="margin-bottom: 0.5rem;">Threat Intelligence</h5>
+                                <p style="font-size: 0.85rem;" class="text-muted">Advanced heuristics and pattern
+                                    matching.</p>
+                            </div>
+                            <div
+                                style="background: rgba(255,255,255,0.03); padding: 2rem; border-radius: 20px; border: 1px solid var(--accent); width: 260px; transform: scale(1.1); box-shadow: 0 0 30px var(--accent-glow);">
+                                <i class="fa-solid fa-chart-pie"
+                                    style="font-size: 2.5rem; color: var(--accent); margin-bottom: 1rem;"></i>
+                                <h5 style="margin-bottom: 0.5rem;">Visual Analytics</h5>
+                                <p style="font-size: 0.85rem;" class="text-muted">Real-time charts and risk
+                                    distributions.</p>
+                            </div>
+                            <div
+                                style="background: rgba(255,255,255,0.03); padding: 2rem; border-radius: 20px; border: 1px solid var(--border); width: 240px;">
+                                <i class="fa-solid fa-history"
+                                    style="font-size: 2.5rem; color: var(--accent); margin-bottom: 1rem;"></i>
+                                <h5 style="margin-bottom: 0.5rem;">Scan History</h5>
+                                <p style="font-size: 0.85rem;" class="text-muted">Detailed logs of all past security
+                                    audits.</p>
+                            </div>
+                        </div>
+                        <div style="margin-top: 4rem;">
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Try the Dashboard</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pricing Section -->
+        <section id="pricing" class="pricing">
+            <div class="container">
+                <div class="text-center mb-6">
+                    <h2 class="animate-fade-in-up">Simple, Transparent Pricing</h2>
+                    <p class="text-muted animate-fade-in-up" style="animation-delay: 0.1s;">Choose the plan that's right for your security needs.</p>
+                </div>
+                <div class="pricing-grid">
+                    <div class="pricing-card animate-fade-in-up" style="animation-delay: 0.2s;">
+                        <h3>Free</h3>
+                        <div class="price">$0<span>/mo</span></div>
+                        <ul class="pricing-features">
+                            <li><i class="fa-solid fa-check"></i> Basic URL Scanning</li>
+                            <li><i class="fa-solid fa-check"></i> Email Analysis</li>
+                            <li><i class="fa-solid fa-check"></i> 5 Scans per day</li>
+                        </ul>
+                        <a href="{{ url_for('signup') }}" class="btn btn-secondary btn-block">Get Started</a>
+                    </div>
+                    <div class="pricing-card popular animate-fade-in-up" style="animation-delay: 0.3s;">
+                        <div class="popular-badge">Most Popular</div>
+                        <h3>Pro</h3>
+                        <div class="price">$29<span>/mo</span></div>
+                        <ul class="pricing-features">
+                            <li><i class="fa-solid fa-check"></i> Advanced AI Detection</li>
+                            <li><i class="fa-solid fa-check"></i> File Malware Analysis</li>
+                            <li><i class="fa-solid fa-check"></i> Unlimited Scans</li>
+                            <li><i class="fa-solid fa-check"></i> Priority Support</li>
+                        </ul>
+                        <a href="{{ url_for('signup') }}" class="btn btn-primary btn-block">Go Pro</a>
+                    </div>
+                    <div class="pricing-card animate-fade-in-up" style="animation-delay: 0.4s;">
+                        <h3>Enterprise</h3>
+                        <div class="price">$99<span>/mo</span></div>
+                        <ul class="pricing-features">
+                            <li><i class="fa-solid fa-check"></i> API Access</li>
+                            <li><i class="fa-solid fa-check"></i> Custom Threat Models</li>
+                            <li><i class="fa-solid fa-check"></i> Team Management</li>
+                        </ul>
+                        <a href="{{ url_for('signup') }}" class="btn btn-secondary btn-block">Contact Sales</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-grid">
+                    <div class="footer-col">
+                        <a href="/" class="logo" style="margin-bottom: 1.5rem;">
+                            <span class="brand-sentinel">Sentinel</span><span class="brand-shield">Shield</span>
+                        </a>
+                        <p class="text-muted" style="line-height: 1.6; font-size: 0.95rem;">Protecting your digital life
+                            with advanced AI threat detection. Our platform provides unified security across all your
+                            digital channels.</p>
+                    </div>
+                    <div class="footer-col">
+
+                        <div class="footer-col" style="display: none;"> <!-- Redundant in clean design -->
+                            <h4>Company</h4>
+                            <ul>
+                                <li><a href="#">About Us</a></li>
+                                <li><a href="#">Contact</a></li>
+                            </ul>
+                        </div>
+
+                        <div class="footer-col">
+                            <h4>Connect</h4>
+                            <div style="display:flex; gap: 1.5rem;">
+                                <a href="#" style="color: var(--text-muted); font-size: 1.25rem;"><i
+                                        class="fa-brands fa-github"></i></a>
+                                <a href="#" style="color: var(--text-muted); font-size: 1.25rem;"><i
+                                        class="fa-brands fa-twitter"></i></a>
+                                <a href="#" style="color: var(--text-muted); font-size: 1.25rem;"><i
+                                        class="fa-brands fa-linkedin"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="footer-bottom">
+                        &copy; 2024 Sentinel Shield. All rights reserved.
+                    </div>
+                </div>
+        </footer>
     </main>
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
