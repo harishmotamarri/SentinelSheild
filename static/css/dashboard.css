@@ -1746,3 +1746,185 @@ body {
     border-color: #e2e8f0;
     color: #0f172a;
 }
+
+/* --- Premium Live Scan Results --- */
+.premium-result-container {
+    padding: 1rem 0;
+    animation: resultPopIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes resultPopIn {
+    0% { opacity: 0; transform: scale(0.98) translateY(15px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.result-card-premium {
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 28px;
+    padding: 2.5rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6);
+}
+
+.result-card-premium::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.4), transparent);
+}
+
+.gauge-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.gauge-container {
+    width: 240px;
+    height: 140px;
+    position: relative;
+    margin-bottom: 0.5rem;
+}
+
+.gauge-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.gauge-background {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.05);
+    stroke-width: 14;
+    stroke-linecap: round;
+}
+
+.gauge-fill {
+    fill: none;
+    stroke-width: 14;
+    stroke-linecap: round;
+    stroke-dasharray: 219.9; /* half of 2 * pi * 70 */
+    stroke-dashoffset: 219.9;
+    transition: stroke-dashoffset 2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gauge-text {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+.gauge-value {
+    font-size: 2.75rem;
+    font-weight: 900;
+    line-height: 1;
+    display: block;
+    letter-spacing: -1px;
+}
+
+.gauge-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    margin-top: 4px;
+}
+
+.intelligence-grid {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 3rem;
+    margin-top: 2rem;
+    align-items: center;
+}
+
+.diagnostic-panel {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 22px;
+    padding: 2rem;
+    position: relative;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.panel-accent {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: radial-gradient(var(--accent) 0.5px, transparent 0.5px);
+    background-size: 24px 24px;
+    opacity: 0.05;
+    pointer-events: none;
+}
+
+.result-tag-premium {
+    position: absolute;
+    top: -12px;
+    left: 24px;
+    padding: 0.35rem 1rem;
+    border-radius: 8px;
+    font-size: 0.65rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.premium-action-btn {
+    padding: 0.85rem 2rem;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.3s;
+}
+
+.premium-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -5px var(--accent-glow);
+}
+
+/* Shimmer Scanning State */
+.premium-scanning-box {
+    padding: 4rem 2rem;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 24px;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.shimmer-line {
+    position: absolute;
+    top: 0; left: -100%; width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.15), transparent);
+    animation: premiumShimmer 1.8s infinite linear;
+}
+
+@keyframes premiumShimmer {
+    0% { left: -100%; }
+    100% { left: 200%; }
+}
+
+[data-theme="light"] .result-card-premium {
+    background: #ffffff;
+    border-color: #e2e8f0;
+}
+
+[data-theme="light"] .diagnostic-panel {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
