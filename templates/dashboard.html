@@ -7,7 +7,7 @@
     <title>Sentinel Shield - Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=7">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -432,7 +432,7 @@
             </div>
             <div class="modal-premium-body">
                 <div style="margin-bottom: 2.5rem;">
-                    <label class="expert-tag">Intelligence Target (Inbound Signal)</label>
+                    <label class="expert-tag">Scanned Analysis Target</label>
                     <div id="modal-input" style="background: rgba(0,0,0,0.4); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-dark); word-break: break-all; font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: var(--accent);"></div>
                 </div>
 
@@ -456,6 +456,22 @@
                 </div>
             </div>
         </div>
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal hidden">
+        <div class="modal-overlay" id="confirm-overlay"></div>
+        <div class="confirm-modal-content glass-card">
+            <div class="confirm-modal-header text-center">
+                <i class="fa-solid fa-circle-question text-accent text-5xl mb-4"></i>
+                <h3 id="confirm-title" class="text-2xl font-black text-white uppercase tracking-wider">Confirm Action</h3>
+            </div>
+            <div class="confirm-modal-body mt-4 text-center">
+                <p id="confirm-message" class="text-slate-300 text-lg font-medium leading-relaxed"></p>
+            </div>
+            <div class="confirm-modal-actions mt-8 flex gap-4">
+                <button id="confirm-cancel-btn" class="btn btn-dark-outline" style="flex: 1; border-radius: 12px; font-weight: 700;">Cancel</button>
+                <button id="confirm-proceed-btn" class="btn btn-accent" style="flex: 1; border-radius: 12px; font-weight: 700;">Execute Action</button>
+            </div>
+        </div>
     </div>
 
     <div id="toast" class="toast hidden">
@@ -467,7 +483,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/script.js') }}?v=2"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}?v=8"></script>
 </body>
 
 </html>

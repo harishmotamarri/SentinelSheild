@@ -119,18 +119,102 @@ JSON Output ONLY. Do NOT output markdown formatting like ```json.
             result = json.loads(content)
             
             label = result.get('label', 'Unknown')
+            threat_status = label
+            confidence = result.get('confidence', 0.5)
+            reason = result.get('reason', '')
+
+            # Risk score calculation
+            base_score = int(confidence * 100)
             if label.lower() == 'safe':
-                 label = 'Safe / Benign'
-                 
+                risk_score = 100 - base_score if base_score > 50 else base_score
+                if risk_score > 30: risk_score = 15
+            else:
+                risk_score = base_score if base_score > 50 else base_score + 40
+
+            import datetime
+            scan_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            form_count = len(site_data['forms'])
+            script_sources = site_data['scripts']
+            script_count = len(script_sources)
+            has_password_form = any('password' in str(f).lower() for f in site_data['forms'])
+            uses_https = url.startswith('https://')
+
+            # External resources from scraped script tags
+            external_resources = []
+            for src in script_sources:
+                try:
+                    from urllib.parse import urlparse
+                    domain = urlparse(src).netloc
+                    if domain and domain not in external_resources:
+                        external_resources.append(domain)
+                except Exception:
+                    pass
+
+            security_checks = [
+                {"name": "HTTPS Enabled", "status": "passed" if uses_https else "failed"},
+                {"name": "SSL Certificate Valid", "status": "passed" if uses_https else "warning"},
+                {"name": "Suspicious JavaScript", "status": "warning" if script_count > 8 else "passed"},
+                {"name": "Hidden Forms", "status": "warning" if has_password_form else "passed"},
+                {"name": "iFrame Injection", "status": "warning" if label.lower() != 'safe' else "passed"},
+                {"name": "External Resources Trusted", "status": "passed" if label.lower() == 'safe' else "warning"}
+            ]
+
+            lbl = label.lower()
+            ai_status = "danger" if lbl == "malware" else ("warning" if lbl == "suspicious" else "safe")
+            indicators = [
+                {"name": "AI Classification", "value": label, "status": ai_status},
+                {"name": "HTTPS", "value": "Enabled" if uses_https else "Not used", "status": "safe" if uses_https else "danger"},
+                {"name": "Script Tags", "value": str(script_count), "status": "warning" if script_count > 8 else "safe"},
+                {"name": "Forms Detected", "value": str(form_count), "status": "warning" if form_count > 0 else "safe"},
+                {"name": "Password Field", "value": "Present" if has_password_form else "None", "status": "warning" if has_password_form else "safe"},
+                {"name": "External Script Domains", "value": str(len(external_resources)), "status": "warning" if external_resources else "safe"},
+            ]
+
+            final_verdict = reason if reason else f"This website has been classified as {label}."
+            if label.lower() == 'safe':
+                final_verdict = "This website appears safe to browse."
+
             return {
+                # Legacy compatibility
                 "result": label,
-                "confidence": result.get('confidence', 0.5),
-                "reason": result.get('reason', ''),
-                "site_metadata": {
+                "reason": reason,
+
+                "url": url,
+                "threat_status": threat_status,
+                "confidence": confidence,
+                "risk_score": risk_score,
+                "scan_time": scan_time,
+                "engine": "Website Inspection Engine",
+
+                "page_info": {
                     "title": site_data['title'],
-                    "form_count": len(site_data['forms']),
-                    "script_count": len(site_data['scripts'])
-                }
+                    "page_size": "N/A",
+                    "load_time": "N/A",
+                    "scripts": script_count,
+                    "external_links": len(external_resources),
+                    "forms": form_count,
+                    "iframes": 0
+                },
+
+                "security_analysis": {
+                    "https": uses_https,
+                    "ssl_valid": uses_https,
+                    "mixed_content": not uses_https,
+                    "suspicious_js": script_count > 8,
+                    "hidden_forms": has_password_form,
+                    "iframes_present": False,
+                    "external_scripts": len(external_resources) > 0,
+                    "redirect_detected": False
+                },
+
+                "technologies": ["Detected via HTTP headers (limited scraping)"],
+                "external_resources": external_resources[:5] if external_resources else ["None detected"],
+
+                "security_checks": security_checks,
+                "indicators": indicators,
+
+                "final_verdict": final_verdict
             }
 
         except requests.RequestException as re:

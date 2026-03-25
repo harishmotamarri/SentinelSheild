@@ -195,14 +195,44 @@ def get_dashboard_stats_api():
     stats = db_service.get_dashboard_stats(user_id)
     return jsonify(stats)
 
-@app.route('/api/user-scans', methods=['GET'])
-def get_scans():
-    user_id = request.args.get('user_id') or request.headers.get('X-User-Id')
+    scans = db_service.get_user_scans(user_id)
+    return jsonify(scans)
+
+@app.route('/api/blacklist', methods=['POST'])
+def add_to_blacklist():
+    user_id = request.headers.get('X-User-Id')
     if not user_id or not db_service:
         return jsonify({'error': 'User ID missing or DB unavailable'}), 400
     
-    scans = db_service.get_user_scans(user_id)
-    return jsonify(scans)
+    data = request.json
+    input_data = data.get('input_data')
+    scan_type = data.get('scan_type', 'Unknown')
+    
+    if not input_data:
+        return jsonify({'error': 'Input data missing'}), 400
+        
+    result = db_service.add_to_blacklist(user_id, input_data, scan_type)
+    if 'error' in result:
+        return jsonify(result), 500
+    return jsonify(result)
+
+@app.route('/api/whitelist', methods=['POST'])
+def add_to_whitelist():
+    user_id = request.headers.get('X-User-Id')
+    if not user_id or not db_service:
+        return jsonify({'error': 'User ID missing or DB unavailable'}), 400
+    
+    data = request.json
+    input_data = data.get('input_data')
+    scan_type = data.get('scan_type', 'Unknown')
+    
+    if not input_data:
+        return jsonify({'error': 'Input data missing'}), 400
+        
+    result = db_service.add_to_whitelist(user_id, input_data, scan_type)
+    if 'error' in result:
+        return jsonify(result), 500
+    return jsonify(result)
 
 @app.route('/api/scan-url', methods=['POST'])
 def scan_url():

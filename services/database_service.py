@@ -1,5 +1,7 @@
 import os
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
+
 from supabase import create_client, Client
 
 class DatabaseService:
@@ -18,11 +20,33 @@ class DatabaseService:
                 print(f"Failed to initialize Supabase client: {e}")
                 self.client = None
 
+    def _supabase_host(self):
+        if not self.url:
+            return None
+        try:
+            return urlparse(self.url).netloc or None
+        except Exception:
+            return None
+
+    def _format_auth_error(self, exc: Exception) -> str:
+        msg = str(exc)
+        host = self._supabase_host()
+        host_bit = f" ({host})" if host else ""
+        lower = msg.lower()
+        if "getaddrinfo" in lower or "11001" in msg or "name or service not known" in lower:
+            return (
+                f"Cannot reach Supabase{host_bit}: DNS or network error. "
+                "Check internet access, VPN/proxy, and that SUPABASE_URL is correct."
+            )
+        if "connection" in lower and ("refused" in lower or "timed out" in lower or "unreachable" in lower):
+            return f"Cannot connect to Supabase{host_bit}: {msg}"
+        return msg
+
     # --- Auth Methods ---
 
     def signup(self, email, password, full_name):
         if not self.client:
-            return {"error": "Database unavailable"}
+            return {"error": "Database unavailable (Supabase not configured or failed to initialize)"}
         
         try:
             # 1. Create User in Auth
@@ -50,11 +74,11 @@ class DatabaseService:
             
         except Exception as e:
             print(f"DEBUG: Supabase Exception during Signup: {str(e)}")
-            return {"error": str(e)}
+            return {"error": self._format_auth_error(e)}
 
     def login(self, email, password):
         if not self.client:
-            return {"error": "Database unavailable"}
+            return {"error": "Database unavailable (Supabase not configured or failed to initialize)"}
         
         try:
             res = self.client.auth.sign_in_with_password({
@@ -63,7 +87,7 @@ class DatabaseService:
             })
             return {"user": res.user, "session": res.session}
         except Exception as e:
-            return {"error": str(e)}
+            return {"error": self._format_auth_error(e)}
 
     # --- Scan Methods ---
 
@@ -84,6 +108,40 @@ class DatabaseService:
             self.client.table('scans').insert(data).execute()
         except Exception as e:
             print(f"Failed to log scan to Supabase: {e}")
+
+    def add_to_blacklist(self, user_id, input_data, scan_type):
+        if not self.client:
+            return {"error": "Database unavailable"}
+        
+        try:
+            data = {
+                "user_id": user_id,
+                "input_data": str(input_data)[:500],
+                "scan_type": scan_type
+            }
+            print(f"DEBUG: Adding to Blacklist - Type: {scan_type}, User: {user_id}")
+            self.client.table('blacklist').insert(data).execute()
+            return {"message": "Successfully added to blacklist"}
+        except Exception as e:
+            print(f"Failed to add to blacklist: {e}")
+            return {"error": str(e)}
+
+    def add_to_whitelist(self, user_id, input_data, scan_type):
+        if not self.client:
+            return {"error": "Database unavailable"}
+        
+        try:
+            data = {
+                "user_id": user_id,
+                "input_data": str(input_data)[:500],
+                "scan_type": scan_type
+            }
+            print(f"DEBUG: Adding to Whitelist - Type: {scan_type}, User: {user_id}")
+            self.client.table('whitelist').insert(data).execute()
+            return {"message": "Successfully added to whitelist"}
+        except Exception as e:
+            print(f"Failed to add to whitelist: {e}")
+            return {"error": str(e)}
 
     def get_user_scans(self, user_id):
         if not self.client:
