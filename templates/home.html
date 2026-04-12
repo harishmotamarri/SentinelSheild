@@ -22,7 +22,7 @@
             <div class="nav-links">
                 <a href="#features" class="nav-item">Features</a>
                 <a href="#how-it-works" class="nav-item">How It Works</a>
-                <a href="{{ url_for('dashboard') }}" class="nav-item">Dashboard</a>
+                <a href="#dashboard-preview" class="nav-item">Dashboard</a>
             </div>
             <div class="nav-right">
                 <button onclick="toggleTheme()" class="btn-icon"
@@ -49,7 +49,7 @@
                     analysis.</p>
 
                 <div class="cta-group">
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary" style="padding: 1.2rem 3rem;">
+                    <a href="{{ url_for('login') }}" class="btn btn-primary premium-glow" style="padding: 1.2rem 3rem;">
                         Scan Now <i class="fa-solid fa-arrow-right"></i>
                     </a>
                     <a href="{{ url_for('signup') }}" class="btn btn-secondary" style="padding: 1.2rem 3rem;">Get
@@ -170,132 +170,139 @@
         </section>
 
         <!-- Dashboard Preview -->
-        <section class="dashboard-preview">
+        <section id="dashboard-preview" class="dashboard-preview">
             <div class="container">
                 <div class="text-center mb-6">
-                    <h2 style="font-size: 3rem; margin-bottom: 1.5rem; font-weight: 800;">Professional Dashboard</h2>
-                    <p class="text-muted" style="font-size: 1.1rem;">Take control of your security with our intuitive
-                        interface</p>
+                    <div class="hero-badge" style="display:inline-block; padding: 0.6rem 1.4rem; background:rgba(79, 70, 229, 0.1); border-radius: 100px; color: var(--primary); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.5rem; border: 1px solid var(--primary-glow);">
+                        <i class="fa-solid fa-desktop"></i> Command Center
+                    </div>
+                    <h2 style="font-size: 3.5rem; margin-bottom: 1.5rem; font-weight: 800; letter-spacing: -0.02em;">Professional Dashboard</h2>
+                    <p class="text-muted" style="font-size: 1.25rem; max-width: 600px; margin: 0 auto;">Take full control of your cyber defense with a beautiful, data-rich interface designed for security analysts.</p>
                 </div>
                 <div class="mockup-container">
+                    <div class="mockup-header">
+                        <div class="window-controls">
+                            <span class="dot close"></span>
+                            <span class="dot minimize"></span>
+                            <span class="dot expand"></span>
+                        </div>
+                        <div class="window-title">sentinel-shield.app/dashboard</div>
+                    </div>
                     <div class="mockup-content">
-                        <div
-                            style="display: flex; gap: 2rem; justify-content: center; align-items: center; flex-wrap: wrap;">
-                            <div
-                                style="background: rgba(255,255,255,0.03); padding: 2rem; border-radius: 20px; border: 1px solid var(--border); width: 240px;">
-                                <i class="fa-solid fa-shield-virus"
-                                    style="font-size: 2.5rem; color: var(--accent); margin-bottom: 1rem;"></i>
-                                <h5 style="margin-bottom: 0.5rem;">Threat Intelligence</h5>
-                                <p style="font-size: 0.85rem;" class="text-muted">Advanced heuristics and pattern
-                                    matching.</p>
-                            </div>
-                            <div
-                                style="background: rgba(255,255,255,0.03); padding: 2rem; border-radius: 20px; border: 1px solid var(--accent); width: 260px; transform: scale(1.1); box-shadow: 0 0 30px var(--accent-glow);">
-                                <i class="fa-solid fa-chart-pie"
-                                    style="font-size: 2.5rem; color: var(--accent); margin-bottom: 1rem;"></i>
-                                <h5 style="margin-bottom: 0.5rem;">Visual Analytics</h5>
-                                <p style="font-size: 0.85rem;" class="text-muted">Real-time charts and risk
-                                    distributions.</p>
-                            </div>
-                            <div
-                                style="background: rgba(255,255,255,0.03); padding: 2rem; border-radius: 20px; border: 1px solid var(--border); width: 240px;">
-                                <i class="fa-solid fa-history"
-                                    style="font-size: 2.5rem; color: var(--accent); margin-bottom: 1rem;"></i>
-                                <h5 style="margin-bottom: 0.5rem;">Scan History</h5>
-                                <p style="font-size: 0.85rem;" class="text-muted">Detailed logs of all past security
-                                    audits.</p>
+                        <!-- Simulated Chart Area -->
+                        <div class="mockup-visual-area">
+                            <div class="glass-orb"></div>
+                            <div class="mockup-stats glass-panel">
+                                <div class="stat-circle">
+                                    <svg viewBox="0 0 36 36" class="circular-chart accent">
+                                        <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                        <path class="circle" stroke-dasharray="85, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    </svg>
+                                    <div class="stat-value">85%</div>
+                                </div>
+                                <div class="stat-text">
+                                    <h3>System Secure</h3>
+                                    <p>Last scan 2 mins ago</p>
+                                </div>
                             </div>
                         </div>
-                        <div style="margin-top: 4rem;">
-                            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Try the Dashboard</a>
+
+                        <!-- Cards Section -->
+                        <div class="mockup-cards-grid">
+                            <div class="mockup-card float-anim-1">
+                                <div class="card-icon"><i class="fa-solid fa-shield-virus"></i></div>
+                                <h5>Threat Intel</h5>
+                                <p>AI-driven heuristics matching</p>
+                            </div>
+                            <div class="mockup-card primary float-anim-2">
+                                <div class="card-icon"><i class="fa-solid fa-chart-pie"></i></div>
+                                <h5>Live Analytics</h5>
+                                <p>Real-time risk distribution</p>
+                            </div>
+                            <div class="mockup-card float-anim-3">
+                                <div class="card-icon"><i class="fa-solid fa-history"></i></div>
+                                <h5>Audit Logs</h5>
+                                <p>Comprehensive scan history</p>
+                            </div>
+                        </div>
+                        <div style="margin-top: 3.5rem;">
+                            <a href="{{ url_for('login') }}" class="btn btn-primary premium-glow" style="padding: 1.2rem 3rem; font-size: 1.1rem;">Access Dashboard <i class="fa-solid fa-arrow-right"></i></a>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Pricing Section -->
-        <section id="pricing" class="pricing">
-            <div class="container">
-                <div class="text-center mb-6">
-                    <h2 class="animate-fade-in-up">Simple, Transparent Pricing</h2>
-                    <p class="text-muted animate-fade-in-up" style="animation-delay: 0.1s;">Choose the plan that's right for your security needs.</p>
-                </div>
-                <div class="pricing-grid">
-                    <div class="pricing-card animate-fade-in-up" style="animation-delay: 0.2s;">
-                        <h3>Free</h3>
-                        <div class="price">$0<span>/mo</span></div>
-                        <ul class="pricing-features">
-                            <li><i class="fa-solid fa-check"></i> Basic URL Scanning</li>
-                            <li><i class="fa-solid fa-check"></i> Email Analysis</li>
-                            <li><i class="fa-solid fa-check"></i> 5 Scans per day</li>
-                        </ul>
-                        <a href="{{ url_for('signup') }}" class="btn btn-secondary btn-block">Get Started</a>
-                    </div>
-                    <div class="pricing-card popular animate-fade-in-up" style="animation-delay: 0.3s;">
-                        <div class="popular-badge">Most Popular</div>
-                        <h3>Pro</h3>
-                        <div class="price">$29<span>/mo</span></div>
-                        <ul class="pricing-features">
-                            <li><i class="fa-solid fa-check"></i> Advanced AI Detection</li>
-                            <li><i class="fa-solid fa-check"></i> File Malware Analysis</li>
-                            <li><i class="fa-solid fa-check"></i> Unlimited Scans</li>
-                            <li><i class="fa-solid fa-check"></i> Priority Support</li>
-                        </ul>
-                        <a href="{{ url_for('signup') }}" class="btn btn-primary btn-block">Go Pro</a>
-                    </div>
-                    <div class="pricing-card animate-fade-in-up" style="animation-delay: 0.4s;">
-                        <h3>Enterprise</h3>
-                        <div class="price">$99<span>/mo</span></div>
-                        <ul class="pricing-features">
-                            <li><i class="fa-solid fa-check"></i> API Access</li>
-                            <li><i class="fa-solid fa-check"></i> Custom Threat Models</li>
-                            <li><i class="fa-solid fa-check"></i> Team Management</li>
-                        </ul>
-                        <a href="{{ url_for('signup') }}" class="btn btn-secondary btn-block">Contact Sales</a>
-                    </div>
-                </div>
-            </div>
-        </section>
+
 
         <!-- Footer -->
         <footer class="footer">
             <div class="container">
                 <div class="footer-grid">
-                    <div class="footer-col">
-                        <a href="/" class="logo" style="margin-bottom: 1.5rem;">
+                    <!-- Brand Column -->
+                    <div class="footer-col brand-col">
+                        <a href="/" class="logo" style="margin-bottom: 1.5rem; display: inline-flex;">
+                            <img src="{{ url_for('static', filename='img/logo.webp') }}" alt="Logo" style="height: 32px; margin-right: 0.5rem;">
                             <span class="brand-sentinel">Sentinel</span><span class="brand-shield">Shield</span>
                         </a>
-                        <p class="text-muted" style="line-height: 1.6; font-size: 0.95rem;">Protecting your digital life
-                            with advanced AI threat detection. Our platform provides unified security across all your
-                            digital channels.</p>
+                        <p class="text-muted" style="line-height: 1.7; font-size: 0.95rem; margin-bottom: 2rem;">
+                            Protecting your digital life with advanced AI threat detection. Providing unified security across all your digital channels effortlessly.
+                        </p>
+                        <div class="social-links">
+                            <a href="#" class="social-icon"><i class="fa-brands fa-github"></i></a>
+                            <a href="#" class="social-icon"><i class="fa-brands fa-twitter"></i></a>
+                            <a href="#" class="social-icon"><i class="fa-brands fa-linkedin-in"></i></a>
+                            <a href="#" class="social-icon"><i class="fa-brands fa-discord"></i></a>
+                        </div>
                     </div>
+
+                    <!-- Company Links -->
                     <div class="footer-col">
-
-                        <div class="footer-col" style="display: none;"> <!-- Redundant in clean design -->
-                            <h4>Company</h4>
-                            <ul>
-                                <li><a href="#">About Us</a></li>
-                                <li><a href="#">Contact</a></li>
-                            </ul>
-                        </div>
-
-                        <div class="footer-col">
-                            <h4>Connect</h4>
-                            <div style="display:flex; gap: 1.5rem;">
-                                <a href="#" style="color: var(--text-muted); font-size: 1.25rem;"><i
-                                        class="fa-brands fa-github"></i></a>
-                                <a href="#" style="color: var(--text-muted); font-size: 1.25rem;"><i
-                                        class="fa-brands fa-twitter"></i></a>
-                                <a href="#" style="color: var(--text-muted); font-size: 1.25rem;"><i
-                                        class="fa-brands fa-linkedin"></i></a>
-                            </div>
-                        </div>
+                        <h4>Platform</h4>
+                        <ul>
+                            <li><a href="#features">Features</a></li>
+                            <li><a href="#how-it-works">How It Works</a></li>
+                            <li><a href="#dashboard-preview">Dashboard</a></li>
+                            <li><a href="#">Pricing</a></li>
+                        </ul>
                     </div>
-                    <div class="footer-bottom">
-                        &copy; 2024 Sentinel Shield. All rights reserved.
+
+                    <!-- Resources Links -->
+                    <div class="footer-col">
+                        <h4>Resources</h4>
+                        <ul>
+                            <li><a href="#">Documentation</a></li>
+                            <li><a href="#">API Reference</a></li>
+                            <li><a href="#">Security Blog</a></li>
+                            <li><a href="#">Status</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Newsletter Column -->
+                    <div class="footer-col newsletter-col">
+                        <h4>Stay Updated</h4>
+                        <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 1rem;">Get the latest threat intelligence and security tips.</p>
+                        <form class="newsletter-form" onsubmit="event.preventDefault();">
+                            <div class="input-wrapper">
+                                <i class="fa-solid fa-envelope"></i>
+                                <input type="email" placeholder="Enter your email" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block" style="border-radius: 12px; margin-top: 0.8rem;">Subscribe <i class="fa-solid fa-paper-plane" style="font-size: 0.9rem; margin-left: 0.5rem;"></i></button>
+                        </form>
                     </div>
                 </div>
+                
+                <div class="footer-bottom">
+                    <div class="footer-bottom-content">
+                        <p>&copy; 2024 Sentinel Shield. All rights reserved.</p>
+                        <div class="legal-links">
+                            <a href="#">Privacy Policy</a>
+                            <a href="#">Terms of Service</a>
+                            <a href="#">Cookie Settings</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </footer>
     </main>
 

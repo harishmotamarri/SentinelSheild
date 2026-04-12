@@ -11,11 +11,17 @@ function initTheme() {
     if (savedTheme) {
         document.documentElement.setAttribute(THEME_ATTR, savedTheme);
         updateToggleIcon(savedTheme);
+        if (typeof window.syncThemePreferences === 'function') {
+            window.syncThemePreferences(savedTheme);
+        }
     } else {
         // Enforce dark mode as default for this app "premium" look, unless user explicitly wants light
         // or respect system? Let's default to dark as per design.
         document.documentElement.setAttribute(THEME_ATTR, 'dark');
         updateToggleIcon('dark');
+        if (typeof window.syncThemePreferences === 'function') {
+            window.syncThemePreferences('dark');
+        }
     }
 }
 
@@ -27,6 +33,9 @@ window.toggleTheme = function () {
     document.documentElement.setAttribute(THEME_ATTR, newTheme);
     localStorage.setItem(STORAGE_KEY, newTheme);
     updateToggleIcon(newTheme);
+    if (typeof window.syncThemePreferences === 'function') {
+        window.syncThemePreferences(newTheme);
+    }
 }
 
 // 3. Update Icon UI (if exists)

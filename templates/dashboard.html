@@ -7,7 +7,7 @@
     <title>Sentinel Shield - Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=7">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=10">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -41,11 +41,8 @@
                     </button>
                     <div id="user-dropdown" class="dropdown-menu hidden">
                         <div class="dropdown-header">
-                            <p class="u-email" id="user-email-display">motamariharish@gmail.com</p>
-                            <p class="u-role">User</p>
+                            <p class="u-email" id="user-name-display">User</p>
                         </div>
-                        <a href="#" onclick="switchTab('dashboard')"><i class="fa-solid fa-gauge-high"></i>
-                            Dashboard</a>
                         <a href="#" onclick="switchTab('profile')"><i class="fa-solid fa-user-gear"></i>
                             Profile Settings</a>
                         <a href="#" onclick="handleLogout()" class="text-red"><i
@@ -119,18 +116,6 @@
                     </div>
                 </div>
 
-                <div class="recent-scans-card animate-slide-up" style="animation-delay: 0.2s;">
-                    <div class="card-header">
-                        <h3>Recent Scans</h3>
-                        <button class="btn-text" onclick="switchTab('history')">View All</button>
-                    </div>
-                    <div id="recent-scans-list" class="recent-scans-list">
-                        <!-- Dynamic content -->
-                        <div class="empty-state small">
-                            No scans yet. Start by scanning a URL, email, or file.
-                        </div>
-                    </div>
-                </div>
             </section>
 
             <section id="tab-profile" class="tab-content hidden">
@@ -144,60 +129,46 @@
                 <div class="profile-layout animate-slide-up" style="animation-delay: 0.1s;">
                     <div class="profile-main">
                         <div class="profile-card">
-                            <div class="profile-cover"></div>
-                            <div class="profile-info">
-                                <div class="profile-avatar-container">
-                                    <div class="profile-avatar" id="profile-avatar-initials">HS</div>
-                                </div>
+                            <div class="profile-card-header">
+                                <div class="profile-avatar" id="profile-avatar-initials">HS</div>
                                 <div class="profile-details">
                                     <h2 id="profile-name">Harish Motamarri</h2>
                                     <p class="profile-email" id="profile-email">motamariharish@gmail.com</p>
                                     <div class="profile-badges">
-                                        <span class="badge bg-blue"><i class="fa-solid fa-user-shield"></i> Verified
-                                            User</span>
-                                        <span class="badge bg-green"><i class="fa-solid fa-calendar-days"></i> Joined <span
-                                                id="profile-joined">Mar 2024</span></span>
+                                        <span class="badge"><i class="fa-solid fa-user-shield"></i> Verified User</span>
+                                        <span class="badge"><i class="fa-solid fa-calendar-days"></i> Joined <span id="profile-joined">Mar 2024</span></span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <div class="profile-stats-grid">
-                            <div class="card p-4">
-                                <h3>Account Security</h3>
-                                <div class="security-score">
-                                    <div class="score-circle">
-                                        <svg viewBox="0 0 36 36" class="circular-chart cyan">
-                                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                            <path class="circle" stroke-dasharray="85, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                            <text x="18" y="20.35" class="percentage">85%</text>
-                                        </svg>
-                                    </div>
-                                    <div class="score-text">
-                                        <h4>Security Health</h4>
-                                        <p>Your account is well-protected. Keep up the good work!</p>
-                                    </div>
+                            <div class="profile-metric-card">
+                                <div class="metric-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                                <div class="metric-content">
+                                    <h3>85%</h3>
+                                    <p>Security Score</p>
                                 </div>
                             </div>
-                            <div class="card p-4">
-                                <h3>Recent Activity Summary</h3>
-                                <div class="activity-summary">
-                                    <div class="activity-item">
-                                        <div class="activity-icon bg-blue"><i class="fa-solid fa-magnifying-glass"></i>
-                                        </div>
-                                        <div class="activity-text">
-                                            <p>Total Scans Performed</p>
-                                            <strong id="profile-scans-count">0</strong>
-                                        </div>
-                                    </div>
-                                    <div class="activity-item">
-                                        <div class="activity-icon bg-red"><i class="fa-solid fa-triangle-exclamation"></i>
-                                        </div>
-                                        <div class="activity-text">
-                                            <p>Threats Mitigated</p>
-                                            <strong id="profile-threats-count">0</strong>
-                                        </div>
-                                    </div>
+                            <div class="profile-metric-card">
+                                <div class="metric-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+                                <div class="metric-content">
+                                    <h3 id="profile-scans-count">0</h3>
+                                    <p>Total Scans Performed</p>
+                                </div>
+                            </div>
+                            <div class="profile-metric-card">
+                                <div class="metric-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                                <div class="metric-content">
+                                    <h3 id="profile-threats-count">0</h3>
+                                    <p>Threats Mitigated</p>
+                                </div>
+                            </div>
+                            <div class="profile-metric-card">
+                                <div class="metric-icon"><i class="fa-solid fa-calendar-check"></i></div>
+                                <div class="metric-content">
+                                    <h3 id="profile-joined-metric">Mar 2024</h3>
+                                    <p>Member Since</p>
                                 </div>
                             </div>
                         </div>
@@ -208,21 +179,30 @@
                             <h3>Account Settings</h3>
                             <ul class="settings-list">
                                 <li>
-                                    <button class="settings-item">
-                                        <i class="fa-solid fa-key"></i>
-                                        <span>Change Password</span>
+                                    <button class="settings-item" type="button" onclick="openChangePasswordModal()">
+                                        <span class="settings-item-main">
+                                            <i class="fa-solid fa-key"></i>
+                                            <span>Change Password</span>
+                                        </span>
+                                        <span class="settings-item-status">Secure</span>
                                     </button>
                                 </li>
                                 <li>
-                                    <button class="settings-item">
-                                        <i class="fa-solid fa-bell"></i>
-                                        <span>Notifications</span>
+                                    <button class="settings-item" type="button" onclick="toggleNotificationsPreference()">
+                                        <span class="settings-item-main">
+                                            <i class="fa-solid fa-bell"></i>
+                                            <span>Notifications</span>
+                                        </span>
+                                        <span class="settings-item-status" id="notifications-status">On</span>
                                     </button>
                                 </li>
                                 <li>
-                                    <button class="settings-item">
-                                        <i class="fa-solid fa-moon"></i>
-                                        <span>Display Theme</span>
+                                    <button class="settings-item" type="button" onclick="toggleProfileTheme()">
+                                        <span class="settings-item-main">
+                                            <i class="fa-solid fa-moon" id="profile-theme-icon"></i>
+                                            <span>Display Theme</span>
+                                        </span>
+                                        <span class="settings-item-status" id="theme-status">Dark</span>
                                     </button>
                                 </li>
                                 <li class="mt-4 pt-4 border-top">
@@ -236,6 +216,41 @@
                     </aside>
                 </div>
             </section>
+
+            <div id="change-password-modal" class="modal hidden">
+                <div class="modal-overlay" onclick="closeChangePasswordModal()"></div>
+                <div class="settings-modal-content glass-card">
+                    <div class="settings-modal-header">
+                        <div>
+                            <p class="settings-modal-kicker">Profile Security</p>
+                            <h3>Change Password</h3>
+                            <p class="settings-modal-note">Use a new password you do not reuse anywhere else.</p>
+                        </div>
+                        <button class="close-btn settings-modal-close" type="button" onclick="closeChangePasswordModal()">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <form id="change-password-form" class="settings-modal-body">
+                        <div class="settings-field">
+                            <label for="current-password-input">Current Password</label>
+                            <input id="current-password-input" class="dark-input" type="password" placeholder="Enter your current password" required>
+                        </div>
+                        <div class="settings-field">
+                            <label for="new-password-input">New Password</label>
+                            <input id="new-password-input" class="dark-input" type="password" placeholder="Enter a new password" required minlength="8">
+                        </div>
+                        <div class="settings-field">
+                            <label for="confirm-password-input">Confirm New Password</label>
+                            <input id="confirm-password-input" class="dark-input" type="password" placeholder="Repeat the new password" required minlength="8">
+                        </div>
+                        <p class="settings-modal-note">After saving, you will be signed out and asked to log in again with the updated password.</p>
+                        <div class="settings-modal-actions">
+                            <button class="btn btn-dark-outline" type="button" onclick="closeChangePasswordModal()">Cancel</button>
+                            <button id="change-password-submit" class="btn btn-accent" type="submit">Update Password</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
             <section id="tab-scan" class="tab-content hidden">
                 <div class="scan-layout">
@@ -281,7 +296,7 @@
                             <textarea id="email-input" class="dark-input mb-3" rows="6"
                                 placeholder="Paste the email body content here..."></textarea>
                             <button id="email-scan-btn" class="btn btn-accent full-width">Analyze Email</button>
-                            <div id="email-result" class="mt-4 hidden"></div>
+                            <div id="email-result" class="mt-6 hidden"></div>
                         </div>
 
                         <div id="tool-sms" class="tool-panel hidden">
@@ -291,7 +306,7 @@
                             <textarea id="sms-input" class="dark-input mb-3" rows="4"
                                 placeholder="Paste the SMS or message content here..."></textarea>
                             <button id="sms-scan-btn" class="btn btn-accent full-width">Analyze Message</button>
-                            <div id="sms-result" class="mt-4 hidden"></div>
+                            <div id="sms-result" class="mt-6 hidden"></div>
                         </div>
 
                         <div id="tool-file" class="tool-panel hidden">
@@ -309,7 +324,7 @@
                             </div>
                             <button id="file-scan-btn" class="btn btn-accent full-width mt-3">Analyze File</button>
 
-                            <div id="file-result" class="mt-4 hidden"></div>
+                            <div id="file-result" class="mt-6 hidden"></div>
                         </div>
 
                         <div id="tool-web" class="tool-panel hidden">
@@ -337,7 +352,7 @@
                                 <span class="text-small">PNG, JPG, or WEBP</span>
                             </div>
                             <button id="qr-scan-btn" class="btn btn-accent full-width mt-3">Scan QR Code</button>
-                            <div id="qr-result" class="mt-4 hidden"></div>
+                            <div id="qr-result" class="mt-6 hidden"></div>
                         </div>
 
                         <div id="tool-domain" class="tool-panel hidden">
@@ -408,6 +423,16 @@
             </section>
 
         </main>
+
+        <footer class="dashboard-footer">
+            <div class="dashboard-footer-inner">
+                <p class="dashboard-footer-brand">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    Sentinel Shield Security Console
+                </p>
+                <p class="dashboard-footer-copy">&copy; 2026 Sentinel Shield. Built for proactive threat intelligence.</p>
+            </div>
+        </footer>
     </div>
 
     <!-- Scan Detail Modal -->
@@ -456,6 +481,7 @@
                 </div>
             </div>
         </div>
+    </div>
     <!-- Confirmation Modal -->
     <div id="confirmation-modal" class="modal hidden">
         <div class="modal-overlay" id="confirm-overlay"></div>
@@ -482,8 +508,8 @@
         <div class="toast-line"></div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/script.js') }}?v=8"></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}?v=2"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}?v=14"></script>
 </body>
 
 </html>

@@ -22,7 +22,7 @@ app = Flask(__name__)
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-User-Id')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-User-Id,X-User-Email')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
@@ -181,6 +181,31 @@ def api_login():
         "access_token": result['session'].access_token
     })
 
+@app.route('/api/auth/change-password', methods=['POST'])
+def api_change_password():
+    if not db_service:
+        return jsonify({'error': 'Database service unavailable'}), 503
+
+    user_id = request.headers.get('X-User-Id')
+    user_email = request.headers.get('X-User-Email')
+    data = request.get_json(silent=True) or {}
+
+    current_password = (data.get('current_password') or '').strip()
+    new_password = (data.get('new_password') or '').strip()
+
+    if not user_id or not user_email:
+        return jsonify({'error': 'Authentication headers missing'}), 401
+
+    if not current_password or not new_password:
+        return jsonify({'error': 'Current password and new password are required'}), 400
+
+    if len(new_password) < 8:
+        return jsonify({'error': 'New password must be at least 8 characters long'}), 400
+
+    result = db_service.change_password(user_id, user_email, current_password, new_password)
+    status = 200 if 'message' in result else 400
+    return jsonify(result), status
+
 # --- API Scan Endpoints ---
 # Consolidated dashboard stats for home charts and recent list
 @app.route('/api/dashboard-stats', methods=['GET'])
@@ -195,6 +220,15 @@ def get_dashboard_stats_api():
     stats = db_service.get_dashboard_stats(user_id)
     return jsonify(stats)
 
+@app.route('/api/user-scans', methods=['GET'])
+def get_user_scans_api():
+    user_id = request.args.get('user_id') or request.headers.get('X-User-Id')
+    if not user_id:
+        return jsonify({"error": "User ID missing"}), 401
+    
+    if not db_service:
+        return jsonify({"error": "Database service not initialized"}), 500
+        
     scans = db_service.get_user_scans(user_id)
     return jsonify(scans)
 
@@ -236,7 +270,7 @@ def add_to_whitelist():
 
 @app.route('/api/scan-url', methods=['POST'])
 def scan_url():
-    if not url_service or not url_service.model:
+    if not url_service or not getattr(url_service, 'client', None):
         return jsonify({'error': 'URL Analysis Service Unavailable'}), 503
 
     try:
@@ -259,7 +293,7 @@ def scan_url():
 
 @app.route('/analyze-email', methods=['POST'])
 def analyze_email():
-    if not email_service or not email_service.model:
+    if not email_service or not getattr(email_service, 'client', None):
         return jsonify({'error': 'Email Analysis Service Unavailable'}), 503
 
     try:
@@ -282,7 +316,7 @@ def analyze_email():
 
 @app.route('/api/scan-sms', methods=['POST'])
 def scan_sms():
-    if not sms_service or not sms_service.model:
+    if not sms_service or not getattr(sms_service, 'client', None):
         return jsonify({'error': 'SMS Analysis Service Unavailable'}), 503
 
     try:
@@ -420,4 +454,7 @@ def whatsapp_webhook():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # For deployment, we need to bind to 0.0.0.0 and use the platform's PORT
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Starting Sentinel Shield on port {port}...")
+    app.run(host="0.0.0.0", port=port, debug=False)

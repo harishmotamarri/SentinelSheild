@@ -1,253 +1,222 @@
-import os
-import re
+import datetime
 import json
-import pickle
-import joblib
-import numpy as np
+import re
 import traceback
 from urllib.parse import urlparse
-from services.feature_extractor import FeatureExtractor
+
+from groq import Groq
+
 
 class UrlService:
-    def __init__(self, model_path, api_key=None):
+    def __init__(self, model_path=None, api_key=None):
+        # model_path kept for backward compatibility with app initialization.
         self.model_path = model_path
         self.api_key = api_key
         self.model = None
-        self._load_model()
-        
+
         if self.api_key:
-            from groq import Groq
             try:
                 self.client = Groq(api_key=self.api_key)
+                print("URL service initialized in Groq-only mode.")
             except Exception as e:
                 print(f"Failed to initialize Groq client for UrlService: {e}")
                 self.client = None
         else:
             self.client = None
-        
-        # Common safe domains whitelist
-        self.WHITELIST = {
-            'google.com', 'youtube.com', 'facebook.com', 'amazon.com', 'wikipedia.org',
-            'twitter.com', 'instagram.com', 'linkedin.com', 'netflix.com', 'microsoft.com',
-            'apple.com', 'github.com', 'stackoverflow.com', 'yahoo.com', 'whatsapp.com',
-            'twitch.tv', 'reddit.com', 'pinterest.com', 'office.com', 'live.com',
-            'bing.com', 'adobe.com', 'dropbox.com', 'wordpress.com', 'zoom.us'
-        }
-        
-        # Regex for URL validation
-        self.url_pattern = re.compile(
-            r'^(?:http|ftp)s?://' 
-            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' 
-            r'localhost|' 
-            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' 
-            r'(?::\d+)?' 
-            r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
-    def _load_model(self):
-        print(f"Loading URL model from {self.model_path}...")
+        self.url_pattern = re.compile(
+            r"^(?:http|ftp)s?://"
+            r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|"
+            r"localhost|"
+            r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"
+            r"(?::\d+)?"
+            r"(?:/?|[/?]\S+)$",
+            re.IGNORECASE,
+        )
+
+        self.shortener_domains = {
+            "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "cutt.ly", "shorturl.at"
+        }
+
+    @staticmethod
+    def _safe_json_loads(text):
+        if not text:
+            return None
+        cleaned = text.strip().replace("```json", "").replace("```", "").strip()
         try:
-            # Try joblib first
-            self.model = joblib.load(self.model_path)
-            print("URL Model loaded via joblib.")
-        except Exception as e:
-            print(f"Joblib load failed: {e}. Trying pickle...")
+            return json.loads(cleaned)
+        except Exception:
+            pass
+
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start != -1 and end != -1 and end > start:
             try:
-                with open(self.model_path, 'rb') as f:
-                    self.model = pickle.load(f)
-                print("URL Model loaded via pickle.")
-            except Exception as e2:
-                print(f"FATAL: Could not load URL model: {e2}")
-                self.model = None
+                return json.loads(cleaned[start:end + 1])
+            except Exception:
+                return None
+        return None
+
+    @staticmethod
+    def _clamp_confidence(value, default=0.65):
+        try:
+            v = float(value)
+        except Exception:
+            v = default
+        return max(0.0, min(1.0, v))
 
     def validate_url(self, url):
-        """Checks if URL is valid and returns normalized URL or raises ValueError."""
         if not url:
             raise ValueError("No URL provided")
-            
-        # Add scheme if missing for validation
+
         check_url = url
-        if not url.startswith(('http://', 'https://')):
-             check_url = 'http://' + url
-             
+        if not url.startswith(("http://", "https://")):
+            check_url = "http://" + url
+
         if not self.url_pattern.match(check_url):
             raise ValueError("Invalid URL format")
-            
-        return check_url if url.startswith(('http://', 'https://')) else 'http://' + url
+
+        return check_url
 
     def scan_url(self, url):
-        """Main method to scan a URL using whitelist + ML model."""
-        if not self.model:
-            return {'error': 'URL Model not loaded', 'status': 500}
+        if not self.client:
+            return {"error": "Groq client not initialized (missing API key)", "status": 503}
 
         try:
-            # 1. Validation
             valid_url = self.validate_url(url)
-            
-            # 2. Whitelist Check
             parsed = urlparse(valid_url)
-            domain = parsed.netloc.lower()
-            if domain.startswith('www.'):
+            domain = parsed.netloc.lower().split(":")[0]
+            if domain.startswith("www."):
                 domain = domain[4:]
-                
-            is_safe = False
-            parts = domain.split('.')
-            for i in range(len(parts) - 1):
-                sub = ".".join(parts[i:])
-                if sub in self.WHITELIST:
-                    is_safe = True
-                    break
-                    
-            if is_safe:
-                return {
-                    'result': 'Safe / Benign',
-                    'confidence': 1.0,
-                    'url': valid_url,
-                    'reason': 'Domain is globally recognized as a securely trusted and safe entity.',
-                    'details': [
-                        {"label": "Domain Trust", "value": "Global Whitelist", "risk": "low"},
-                        {"label": "Protocol", "value": "HTTPS" if valid_url.startswith("https") else "HTTP", "risk": "low" if valid_url.startswith("https") else "medium"},
-                        {"label": "Verification", "value": "Verified Entity", "risk": "low"}
-                    ]
+
+            uses_https = parsed.scheme.lower() == "https"
+            has_ip = bool(re.fullmatch(r"\d{1,3}(?:\.\d{1,3}){3}", domain))
+            has_at_symbol = "@" in valid_url
+            domain_dash_count = domain.count("-")
+            digit_count = sum(ch.isdigit() for ch in valid_url)
+            url_len = len(valid_url)
+            suspicious_tokens = [
+                token for token in [
+                    "login", "verify", "secure", "update", "account", "bank", "wallet",
+                    "bonus", "free", "gift", "invoice", "payment", "signin", "reset"
+                ] if token in valid_url.lower()
+            ]
+            is_shortener = domain in self.shortener_domains
+
+            prompt = f"""You are an elite cybersecurity URL analyst.
+Classify this URL into one of Safe, Suspicious, or Malware.
+
+URL: {valid_url}
+
+Signals:
+- domain: {domain}
+- https_enabled: {uses_https}
+- ip_as_host: {has_ip}
+- has_at_symbol: {has_at_symbol}
+- domain_dash_count: {domain_dash_count}
+- digit_count: {digit_count}
+- url_length: {url_len}
+- looks_like_shortener: {is_shortener}
+- suspicious_tokens: {', '.join(suspicious_tokens) if suspicious_tokens else 'none'}
+
+Return ONLY valid JSON with exactly these keys:
+1. "label": one of "Safe", "Suspicious", "Malware"
+2. "confidence": number between 0.0 and 1.0
+3. "summary": one short sentence
+4. "reason": 1-2 sentence explanation
+5. "recommendation": one short actionable sentence
+"""
+
+            response = self.client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model="llama-3.1-8b-instant",
+                temperature=0.1,
+                max_completion_tokens=260,
+            )
+
+            parsed_ai = self._safe_json_loads(response.choices[0].message.content)
+            if not parsed_ai:
+                parsed_ai = {
+                    "label": "Suspicious",
+                    "confidence": 0.6,
+                    "summary": "Unable to parse full model output; defaulting to suspicious.",
+                    "reason": "The AI response was incomplete, so this URL is treated cautiously.",
+                    "recommendation": "Avoid submitting credentials unless verified through a trusted source.",
                 }
 
-            # 3. Feature Extraction
-            extractor = FeatureExtractor(valid_url)
-            features_df = extractor.extract_features()
-            
-            # 4. Prediction
-            prediction = self.model.predict(features_df)
-            result = int(prediction[0])
-            
-            # --- HEURISTIC OVERRIDE ---
-            if features_df['suspicious_extension'].values[0] == 1:
-                result = 3 # Malware
-            # --------------------------
-            
-            confidence = 0.0
-            if hasattr(self.model, 'predict_proba'):
-                proba = self.model.predict_proba(features_df)
-                confidence = float(np.max(proba))
-            
-            label_map = {
-                0: 'Benign',
-                1: 'Defacement',
-                2: 'Phishing',
-                3: 'Malware'
-            }
-            
-            status = label_map.get(result, f"Unknown ({result})")
-            reason = ""
+            label = str(parsed_ai.get("label", "Suspicious")).strip().title()
+            if label not in ("Safe", "Suspicious", "Malware"):
+                label = "Suspicious"
 
-            # --- GROQ ENHANCEMENT ---
-            import datetime
-            scan_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-            
-            ai_summary = "Automated analysis completed."
-            ai_recommendation = "Proceed with caution."
-            
-            if self.client:
-                print(f"Requesting Groq AI Analysis for URL: {valid_url}")
-                try:
-                    prompt = f"""You are a cybersecurity expert.
-Analyze this URL for potential security threats: {valid_url}
-The local ML model classified it as: {status} (Confidence: {confidence:.2f})
+            confidence = self._clamp_confidence(parsed_ai.get("confidence", 0.65))
+            ai_summary = str(parsed_ai.get("summary", "URL analysis completed.")).strip()
+            reason = str(parsed_ai.get("reason", "No explanation provided.")).strip()
+            recommendation = str(parsed_ai.get("recommendation", "Proceed carefully with this URL.")).strip()
 
-Indicators from feature extraction:
-- Suspicious extension: {'Yes' if features_df['suspicious_extension'].values[0] == 1 else 'No'}
-- Shortening Service: {'Yes' if features_df['Shortining_Service'].values[0] == 1 else 'No'}
-- Number of Digits: {features_df['digits'].values[0]}
-
-Return a valid JSON response with exactly these three keys:
-"summary": A short 1 sentence summary of the threat level.
-"reason": A 1-2 sentence expert explanation for why this URL is {status} or if there's any other risk based on the structure.
-"recommendation": A 1 sentence instruction to the user (e.g. "Do not enter credentials").
-
-JSON ONLY."""
-                    
-                    response = self.client.chat.completions.create(
-                        messages=[{"role": "user", "content": prompt}],
-                        model="llama-3.1-8b-instant",
-                        temperature=0.1,
-                        max_completion_tokens=200,
-                    )
-                    content = response.choices[0].message.content.strip().replace('```json', '').replace('```', '').strip()
-                    ai_result = json.loads(content)
-                    reason = ai_result.get('reason', f"Automated analysis classified this as {status.lower()}.")
-                    ai_summary = ai_result.get('summary', f"The URL was classified as {status}.")
-                    ai_recommendation = ai_result.get('recommendation', "Exercise caution.")
-                except Exception as e:
-                    print(f"Groq URL Analysis failed: {e}")
-                    reason = f"Automated analysis classified this as {status.lower()}."
-            else:
-                reason = f"ML model detected characteristics of {status.lower()}."
-            # --------------------------
-            
-            # Risk score calculation
-            base_score = int(confidence * 100) if confidence > 0.0 else 50
-            if status == 'Benign':
-                risk_score = 100 - base_score if base_score > 50 else base_score
-                if risk_score > 30: risk_score = 15
-            else:
-                risk_score = base_score if base_score > 50 else base_score + 40
-                
-            threat_status = status
-            final_verdict = f"This URL is categorized as {status}. Proceed with extreme caution."
-            if status == 'Benign':
-                threat_status = 'Safe'
+            if label == "Safe":
+                risk_score = min(20.0, max(0.0, (1.0 - confidence) * 100.0))
+                threat_status = "Safe"
                 final_verdict = "This URL appears safe to visit."
-            
+            elif label == "Malware":
+                risk_score = max(75.0, confidence * 100.0)
+                threat_status = "Malware"
+                final_verdict = reason or "This URL appears malicious. Do not open it."
+            else:
+                risk_score = max(45.0, confidence * 100.0)
+                threat_status = "Suspicious"
+                final_verdict = reason or "This URL appears suspicious. Use caution."
+
+            scan_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
             indicators = [
-                {"name": "URL Length", "value": f"{int(features_df['url_len'].values[0])} chars", "status": "safe" if features_df['url_len'].values[0] < 75 else "warning"},
-                {"name": "HTTPS", "value": "Yes" if features_df['https'].values[0] == 1 else "No", "status": "safe" if features_df['https'].values[0] == 1 else "danger"},
-                {"name": "Domain Age", "value": "Unknown", "status": "warning"},
-                {"name": "IP Address Usage", "value": "Yes" if features_df['having_ip_address'].values[0] == 1 else "No", "status": "danger" if features_df['having_ip_address'].values[0] == 1 else "safe"},
-                {"name": "Redirects", "value": str(int(features_df.get('phish_adv_has_redirect', [0])[0] if 'phish_adv_has_redirect' in features_df else 0)), "status": "warning" if ('phish_adv_has_redirect' in features_df and features_df['phish_adv_has_redirect'].values[0] == 1) else "safe"},
-                {"name": "Blacklist Status", "value": "Listed" if status != 'Benign' else "Not Listed", "status": "danger" if status != 'Benign' else "safe"}
+                {"name": "URL Length", "value": f"{url_len} chars", "status": "warning" if url_len > 90 else "safe"},
+                {"name": "HTTPS", "value": "Yes" if uses_https else "No", "status": "safe" if uses_https else "danger"},
+                {"name": "IP Address Usage", "value": "Yes" if has_ip else "No", "status": "danger" if has_ip else "safe"},
+                {"name": "Shortener Service", "value": "Yes" if is_shortener else "No", "status": "warning" if is_shortener else "safe"},
+                {"name": "Suspicious Tokens", "value": str(len(suspicious_tokens)), "status": "warning" if suspicious_tokens else "safe"},
+                {"name": "AI Classification", "value": label, "status": "danger" if label == "Malware" else ("warning" if label == "Suspicious" else "safe")},
             ]
-            
+
             security_checks = [
-                {"name": "SSL Certificate", "status": "passed" if features_df['https'].values[0] == 1 else "failed"},
-                {"name": "Domain Reputation", "status": "passed" if features_df['having_ip_address'].values[0] == 0 else "warning"},
-                {"name": "Google Safe Browsing", "status": "passed"},
-                {"name": "Phishing Keywords", "status": "warning" if features_df['phish_urgency_words'].values[0] > 0 else "passed"},
-                {"name": "Hidden iFrames", "status": "warning" if features_df['web_hidden_inputs'].values[0] > 0 else "passed"},
-                {"name": "External Scripts", "status": "warning" if features_df['suspicious_extension'].values[0] == 1 else "passed"}
+                {"name": "SSL Certificate", "status": "passed" if uses_https else "failed"},
+                {"name": "Domain Format", "status": "warning" if has_ip or has_at_symbol else "passed"},
+                {"name": "Redirection Pattern", "status": "warning" if is_shortener else "passed"},
+                {"name": "Phishing Token Scan", "status": "warning" if suspicious_tokens else "passed"},
+                {"name": "AI Threat Classification", "status": "failed" if label == "Malware" else ("warning" if label == "Suspicious" else "passed")},
             ]
-            
+
             return {
-                'url': valid_url,
-                'threat_status': threat_status,
-                'confidence': confidence,
-                'risk_score': risk_score,
-                'engine': 'AI + Heuristic Analysis',
-                'scan_time': scan_time,
-                'ai_analysis': {
-                    'summary': ai_summary,
-                    'reason': reason,
-                    'recommendation': ai_recommendation
+                "url": valid_url,
+                "threat_status": threat_status,
+                "confidence": round(confidence, 4),
+                "risk_score": round(risk_score, 2),
+                "engine": "Groq AI URL Intelligence Engine",
+                "scan_time": scan_time,
+                "ai_analysis": {
+                    "summary": ai_summary,
+                    "reason": reason,
+                    "recommendation": recommendation,
                 },
-                'indicators': indicators,
-                'security_checks': security_checks,
-                'timeline': [
+                "indicators": indicators,
+                "security_checks": security_checks,
+                "timeline": [
                     "URL Submitted",
-                    "Domain Analysis",
-                    "WHOIS Lookup",
-                    "SSL Certificate Check",
-                    "Content Analysis",
-                    "ML Classification",
+                    "Syntax Validation",
+                    "Signal Extraction",
+                    "AI Threat Classification",
                     "Risk Score Calculation",
-                    "Final Verdict"
+                    "Final Verdict",
                 ],
-                'final_verdict': final_verdict,
-                
-                # Internal compatibility
-                'result': status,
-                'reason': reason
+                "final_verdict": final_verdict,
+
+                # Compatibility keys
+                "result": label,
+                "reason": reason,
             }
 
         except ValueError as ve:
-            return {'error': str(ve), 'status': 400}
+            return {"error": str(ve), "status": 400}
         except Exception as e:
             print(f"URL Scan Error: {e}")
             traceback.print_exc()
-            return {'error': f"Scanning failed: {str(e)}", 'status': 500}
+            return {"error": f"Scanning failed: {str(e)}", "status": 500}

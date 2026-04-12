@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
+import requests
 from supabase import create_client, Client
 
 class DatabaseService:
@@ -87,6 +88,48 @@ class DatabaseService:
             })
             return {"user": res.user, "session": res.session}
         except Exception as e:
+            return {"error": self._format_auth_error(e)}
+
+    def change_password(self, user_id, email, current_password, new_password):
+        if not self.client:
+            return {"error": "Database unavailable (Supabase not configured or failed to initialize)"}
+
+        anon_key = os.getenv("SUPABASE_ANON_KEY")
+        if not self.url or not self.key or not anon_key:
+            return {"error": "Supabase credentials missing for password update"}
+
+        try:
+            verifier = create_client(self.url, anon_key)
+            auth_res = verifier.auth.sign_in_with_password({
+                "email": email,
+                "password": current_password
+            })
+
+            if not auth_res or not auth_res.user:
+                return {"error": "Current password is incorrect"}
+
+            if user_id and auth_res.user.id != user_id:
+                return {"error": "Authenticated user does not match current session"}
+
+            endpoint = f"{self.url.rstrip('/')}/auth/v1/admin/users/{auth_res.user.id}"
+            headers = {
+                "apikey": self.key,
+                "Authorization": f"Bearer {self.key}",
+                "Content-Type": "application/json"
+            }
+
+            response = requests.put(endpoint, headers=headers, json={"password": new_password}, timeout=10)
+            if response.status_code >= 400:
+                try:
+                    payload = response.json()
+                    detail = payload.get('msg') or payload.get('error_description') or payload.get('message')
+                except Exception:
+                    detail = response.text
+                return {"error": detail or "Failed to update password"}
+
+            return {"message": "Password updated successfully"}
+        except Exception as e:
+            print(f"Failed to change password: {e}")
             return {"error": self._format_auth_error(e)}
 
     # --- Scan Methods ---

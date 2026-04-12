@@ -28,6 +28,9 @@ async function handleLogin(e) {
             localStorage.setItem('user_id', data.user_id);
             localStorage.setItem('access_token', data.access_token);
             localStorage.setItem('user_email', email);
+            if (data.user_name || data.full_name || data.name) {
+                localStorage.setItem('user_name', data.user_name || data.full_name || data.name);
+            }
 
             // 4. Redirect to Dashboard
             window.location.href = 'dashboard.html';
@@ -100,6 +103,135 @@ function handleLogout() {
     window.location.href = 'login.html';
 }
 
+function isNotificationsEnabled() {
+    const stored = localStorage.getItem('sentinel-shield-notifications');
+    return stored === null ? true : stored === 'true';
+}
+
+function setNotificationsEnabled(enabled) {
+    localStorage.setItem('sentinel-shield-notifications', String(enabled));
+    refreshProfileSettingsState();
+}
+
+function toggleNotificationsPreference() {
+    const nextValue = !isNotificationsEnabled();
+    setNotificationsEnabled(nextValue);
+    showToast(
+        nextValue ? 'Notifications Enabled' : 'Notifications Disabled',
+        nextValue ? 'In-app alerts are now visible.' : 'In-app alerts are now muted from profile settings.',
+        nextValue ? 'success' : 'info',
+        4000,
+        true
+    );
+}
+
+function toggleProfileTheme() {
+    toggleTheme();
+    refreshProfileSettingsState();
+}
+
+function refreshProfileSettingsState() {
+    const notificationStatus = document.getElementById('notifications-status');
+    if (notificationStatus) {
+        notificationStatus.innerText = isNotificationsEnabled() ? 'On' : 'Off';
+    }
+
+    const themeStatus = document.getElementById('theme-status');
+    const profileThemeIcon = document.getElementById('profile-theme-icon');
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+    if (themeStatus) {
+        themeStatus.innerText = currentTheme === 'light' ? 'Light' : 'Dark';
+    }
+
+    if (profileThemeIcon) {
+        profileThemeIcon.classList.toggle('fa-sun', currentTheme === 'light');
+        profileThemeIcon.classList.toggle('fa-moon', currentTheme !== 'light');
+    }
+}
+
+window.syncThemePreferences = refreshProfileSettingsState;
+
+function openChangePasswordModal() {
+    const modal = document.getElementById('change-password-modal');
+    const form = document.getElementById('change-password-form');
+    if (!modal || !form) return;
+
+    form.reset();
+    modal.classList.remove('hidden');
+
+    const firstInput = document.getElementById('current-password-input');
+    if (firstInput) {
+        setTimeout(() => firstInput.focus(), 50);
+    }
+}
+
+function closeChangePasswordModal() {
+    const modal = document.getElementById('change-password-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function submitChangePassword(e) {
+    e.preventDefault();
+
+    const currentPassword = document.getElementById('current-password-input')?.value?.trim() || '';
+    const newPassword = document.getElementById('new-password-input')?.value?.trim() || '';
+    const confirmPassword = document.getElementById('confirm-password-input')?.value?.trim() || '';
+    const submitBtn = document.getElementById('change-password-submit');
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        showToast('Validation Error', 'All password fields are required.', 'warning');
+        return;
+    }
+
+    if (newPassword.length < 8) {
+        showToast('Validation Error', 'New password must be at least 8 characters long.', 'warning');
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        showToast('Validation Error', 'New password and confirmation do not match.', 'warning');
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Updating...';
+    }
+
+    try {
+        const response = await fetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+            showToast('Password Update Failed', data.error || 'Unable to update password.', 'error');
+            return;
+        }
+
+        closeChangePasswordModal();
+        showToast('Password Updated', 'Please sign in again with your new password.', 'success', 4000, true);
+        setTimeout(() => {
+            handleLogout();
+        }, 1200);
+    } catch (err) {
+        console.error('Password update failed:', err);
+        showToast('Network Error', 'Could not update the password right now.', 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Update Password';
+        }
+    }
+}
+
 function checkAuth() {
     const userId = localStorage.getItem('user_id');
     const isLoginPage = window.location.pathname.includes('login.html') || window.location.pathname.includes('signup.html') || window.location.pathname === '/' || window.location.pathname === '';
@@ -108,8 +240,13 @@ function checkAuth() {
         window.location.href = 'login.html';
     } else if (userId) {
         // Update UI if needed
-        const userEmailSpan = document.getElementById('user-email-display');
-        if (userEmailSpan) userEmailSpan.innerText = localStorage.getItem('user_email');
+        const userNameDisplay = document.getElementById('user-name-display');
+        if (userNameDisplay) {
+            const storedName = localStorage.getItem('user_name');
+            const fallbackFromProfile = document.getElementById('profile-name')?.innerText?.trim();
+            const fallbackName = storedName || fallbackFromProfile || 'User';
+            userNameDisplay.innerText = fallbackName;
+        }
     }
 }
 
@@ -180,10 +317,14 @@ function updateProfileInfo(data) {
     const nameEls = document.querySelectorAll('#profile-name');
     const emailEls = document.querySelectorAll('#profile-email');
     const joinedEl = document.getElementById('profile-joined');
+    const joinedMetricEl = document.getElementById('profile-joined-metric');
     const initialsEl = document.getElementById('profile-avatar-initials');
 
     if (data.user_name) {
+        localStorage.setItem('user_name', data.user_name);
         nameEls.forEach(el => el.innerText = data.user_name);
+        const userNameDisplay = document.getElementById('user-name-display');
+        if (userNameDisplay) userNameDisplay.innerText = data.user_name;
         // Set initials
         const parts = data.user_name.split(' ');
         const initials = parts.map(p => p[0]).join('').toUpperCase().substring(0, 2);
@@ -195,7 +336,10 @@ function updateProfileInfo(data) {
         emailEls.forEach(el => el.innerText = email);
     }
 
-    if (joinedEl && data.joined_date) joinedEl.innerText = data.joined_date;
+    if (data.joined_date) {
+        if (joinedEl) joinedEl.innerText = data.joined_date;
+        if (joinedMetricEl) joinedMetricEl.innerText = data.joined_date;
+    }
 
     // Stats
     const countEl = document.getElementById('profile-scans-count');
@@ -470,30 +614,6 @@ function closeScanModal() {
     });
 }
 
-function switchTab(tabId) {
-    // 1. Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
-
-    // 2. Clear all active nav items
-    document.querySelectorAll('.nav-item').forEach(btn => {
-        btn.classList.remove('active');
-        // Simple match for activation
-        if (btn.innerText.toLowerCase().includes(tabId)) {
-            btn.classList.add('active');
-        }
-    });
-
-    // 3. Show selected tab
-    const targetTab = document.getElementById(`tab-${tabId}`);
-    if (targetTab) targetTab.classList.remove('hidden');
-
-    // 4. Load data based on tab
-    if (tabId === 'dashboard') {
-        refreshDashboard();
-    } else if (tabId === 'history') {
-        fetchHistory();
-    }
-}
 
 function getRiskLevel(result, confidence) {
     if (!result) return { label: 'Unknown', class: 'badge-low' };
@@ -663,10 +783,7 @@ function openScanDetailModal(scan) {
     modal.classList.remove('hidden');
 }
 
-function closeScanModal() {
-    const modal = document.getElementById('scan-detail-modal');
-    if (modal) modal.classList.add('hidden');
-}
+
 
 async function shareEvidence(data) {
     const reportText = `Sentinel Shield Security Report\nTarget: ${data.url || data.input_data}\nVerdict: ${data.threat_status || data.result}\nConfidence: ${((data.confidence || 0) * 100).toFixed(1)}%\nScan Time: ${data.scan_time || new Date().toLocaleString()}`;
@@ -769,19 +886,11 @@ function renderIndicatorGridCells(indicators) {
         const label = escapeHtml(ind.name || ind.label);
         const val = escapeHtml(ind.value);
         return `
-            <div class="indicator-card" style="
-                padding: 0.875rem 1rem;
-                border-radius: 10px;
-                border: 1px solid rgba(51,65,85,0.6);
-                background: rgba(30,41,59,0.25);
-                transition: background 0.2s, border-color 0.2s;
-                cursor: default;
-            " onmouseover="this.style.background='rgba(30,41,59,0.6)';this.style.borderColor='rgba(71,85,105,0.8)'"
-               onmouseout ="this.style.background='rgba(30,41,59,0.25)';this.style.borderColor='rgba(51,65,85,0.6)'">
-                <div style="font-size:9px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.5rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${label}</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
-                    <span style="font-size:0.85rem; font-weight:700; color:#f1f5f9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${val}</span>
-                    <span style="flex-shrink:0; font-size:1rem; line-height:1;">${icon}</span>
+            <div class="indicator-card">
+                <div class="indicator-label">${label}</div>
+                <div class="indicator-value-row">
+                    <span class="indicator-value">${val}</span>
+                    <span class="indicator-icon">${icon}</span>
                 </div>
             </div>`;
     }).join('');
@@ -827,20 +936,22 @@ function renderScanResult(containerId, data, scanType) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
+    const isSmsScan = String(scanType || '').toUpperCase() === 'SMS';
+
     container.classList.remove('hidden');
     container.innerHTML = '';
 
     const resultWrapper = document.createElement('div');
-    resultWrapper.className = 'premium-dashboard-container';
+    resultWrapper.className = `premium-dashboard-container${isSmsScan ? ' sms-result-full' : ''}`;
 
     if (data.error) {
         resultWrapper.innerHTML = `
             <div class="glass-card" style="border-top: 4px solid #ef4444;">
-                <div class="flex items-center gap-4 text-red-400">
-                    <i class="fa-solid fa-triangle-exclamation text-3xl"></i>
+                <div style="display:flex; align-items:center; gap:1rem; color:#ef4444;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size:1.875rem;"></i>
                     <div>
-                        <h3 class="font-bold text-lg">Analysis Error</h3>
-                        <p class="text-sm opacity-80">${data.error}</p>
+                        <h3 style="font-weight:700; font-size:1.125rem; margin-bottom:0.25rem;">Analysis Error</h3>
+                        <p style="font-size:0.875rem; opacity:0.8; margin:0;">${data.error}</p>
                     </div>
                 </div>
             </div>
@@ -927,7 +1038,7 @@ function renderScanResult(containerId, data, scanType) {
                                 </span>
                             </div>
                         </div>
-                        <h2 class="scan-target-banner__url text-xl font-black text-white mb-3 break-all line-clamp-3 leading-snug">${urlDisplay}</h2>
+                        <h2 class="scan-target-banner__url" style="font-size:1.25rem; font-weight:900; color:#fff; margin-bottom:0.75rem; word-break:break-all; line-height:1.375;">${urlDisplay}</h2>
                     </div>
                 </div>
 
@@ -946,7 +1057,6 @@ function renderScanResult(containerId, data, scanType) {
                     </div>
                 </div>
             </div>
-
             <!-- 2. Risk Score -->
             <div class="score-container summary-score-col">
                 <div class="chart-wrapper">
@@ -954,44 +1064,42 @@ function renderScanResult(containerId, data, scanType) {
                     <div class="chart-center">
                         <!-- FIX: number and label centred with flex column -->
                         <span style="font-size: 2.25rem; font-weight: 900; color: ${statusColor}; line-height: 1; letter-spacing: -0.04em; display:block; text-align:center;">${riskScore}</span>
-                        <span style="font-size: 8px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 4px; display:block; text-align:center;">Risk Index</span>
+                        <span style="font-size: 8px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 4px; display:block; text-align:center;">Risk Index</span>
                     </div>
                 </div>
                 <!-- FIX: confidence label centred and no scale transform -->
                 <div style="text-align:center; margin-top: 8px;">
-                    <span style="font-size:10px; font-weight:900; color:#64748b; text-transform:uppercase; letter-spacing:0.1em;">
-                        Confidence: <span style="color:#f1f5f9;">${(confidence * 100).toFixed(1)}%</span>
+                    <span style="font-size:10px; font-weight:900; color: var(--text-secondary); text-transform: uppercase; letter-spacing:0.1em;">
+                        Confidence: <span style="color: var(--text-primary);">${(confidence * 100).toFixed(1)}%</span>
                     </span>
                 </div>
             </div>
         </div>
-
-        <div class="premium-grid mt-6">
+        <div class="premium-grid mt-4">
             <!-- Left Column -->
             <div class="results-grid-col results-grid-col--main">
 
                 <!-- 3. AI Forensic Analysis -->
                 <div class="glass-card ai-card result-glass-card ai-forensic-card">
-                    <div class="ai-card-head flex items-center gap-3 border-b border-slate-700/50">
-                        <div class="p-2 rounded-lg bg-accent/10 text-accent" style="display:flex;align-items:center;justify-content:center;">
-                            <i class="fa-solid fa-brain text-xl"></i>
+                    <div class="ai-card-head" style="display:flex; align-items:center; gap:0.75rem; border-bottom:1px solid rgba(148,163,184,0.2); margin-bottom:1rem; padding-bottom:0.75rem;">
+                        <div style="display:flex; align-items:center; justify-content:center; padding:0.5rem; background:rgba(6,182,212,0.1); color:var(--accent); border-radius:0.5rem;">
+                            <i class="fa-solid fa-brain" style="font-size:1.25rem;"></i>
                         </div>
-                        <h3 class="text-sm font-black text-white uppercase tracking-widest" style="margin:0;">AI Forensic Analysis</h3>
+                        <h3 style="margin:0; font-size:0.875rem; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:0.1em;">AI Forensic Analysis</h3>
                     </div>
                     <div class="ai-content">
-                        <p class="ai-summary font-bold text-white leading-snug" style="font-size:0.95rem;">${aiSummary}</p>
-                        <p class="ai-reason text-slate-400 text-sm leading-relaxed font-medium whitespace-pre-line">${aiReason}</p>
-                        <div class="recommendation-box p-4 rounded-xl bg-slate-900 border border-slate-700/50 relative overflow-hidden">
-                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-accent"></div>
-                            <!-- FIX: label and value vertically separated cleanly -->
-                            <span class="text-[10px] text-slate-500 uppercase font-black tracking-widest block mb-1.5">Recommendation Directive</span>
-                            <span class="text-sm font-semibold text-slate-200">${aiRecommendation}</span>
+                        <p class="ai-summary" style="font-size:0.95rem; font-weight:700; color:var(--text-primary); line-height:1.4; margin-bottom:0.5rem;">${aiSummary}</p>
+                        <p class="ai-reason" style="color:var(--text-secondary); font-size:0.875rem; line-height:1.625; font-weight:500; white-space:pre-line;">${aiReason}</p>
+                        <div class="recommendation-box" style="padding:1rem; border-radius:0.75rem; background:var(--bg-surface-alt); border:1px solid var(--border-dim); position:relative; overflow:hidden; margin-top:1rem;">
+                            <div style="position:absolute; left:0; top:0; bottom:0; width:0.25rem; background:var(--accent);"></div>
+                            <span style="opacity:0.6; font-size:10px; color:var(--text-secondary); text-transform:uppercase; font-weight:900; letter-spacing:0.1em; display:block; margin-bottom:0.375rem;">Recommendation Directive</span>
+                            <span style="font-size:0.875rem; font-weight:600; color:var(--text-primary);">${aiRecommendation}</span>
                         </div>
                     </div>
                 </div>
-
             </div>
 
+            ${isSmsScan ? '' : `
             <!-- Right Column -->
             <div class="results-grid-col results-grid-col--side">
 
@@ -1008,7 +1116,7 @@ function renderScanResult(containerId, data, scanType) {
                             let statusColor2 = '#34d399';
                             if (chk.status === 'failed') {
                                 bg='rgba(239,68,68,0.05)'; border='rgba(239,68,68,0.18)';
-                                iconColor='#f87171'; statusColor2='#f87171';
+                                iconColor='#ef4444'; statusColor2='#ef4444';
                                 icon='<i class="fa-solid fa-circle-xmark"></i>';
                             } else if (chk.status === 'warning') {
                                 bg='rgba(245,158,11,0.05)'; border='rgba(245,158,11,0.18)';
@@ -1026,7 +1134,7 @@ function renderScanResult(containerId, data, scanType) {
                             ">
                                 <!-- FIX: icon fixed width so labels stay aligned -->
                                 <span style="color:${iconColor}; font-size:1rem; flex-shrink:0; width:18px; text-align:center;">${icon}</span>
-                                <span style="font-size:0.82rem; font-weight:600; color:#e2e8f0; flex:1;">${chk.name}</span>
+                                <span style="font-size:0.82rem; font-weight:600; color: var(--text-primary); flex:1;">${chk.name}</span>
                                 <!-- FIX: status badge pill instead of raw text for better readability -->
                                 <span style="
                                     font-size:0.6rem; font-weight:800; letter-spacing:0.12em;
@@ -1040,13 +1148,13 @@ function renderScanResult(containerId, data, scanType) {
                     </div>
                 </div>
                 ` : ''}
-
-                ${renderPremiumTechnicalIndicatorsCard(indicators)}
             </div>
+            `}
         </div>
 
+
         <!-- 7. Action Buttons — FIX: align-items center -->
-        <div class="action-buttons-grid mt-6" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+        <div class="action-buttons-grid mt-4" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
             ${(url && url.startsWith('http')) ? `
                 <a href="${url}" target="_blank" class="neon-btn btn-primary"><i class="fa-solid fa-arrow-up-right-from-square"></i> Sandbox Access</a>
             ` : ''}
@@ -1058,13 +1166,13 @@ function renderScanResult(containerId, data, scanType) {
         </div>
 
         <!-- 8. Final Verdict Banner -->
-        <div class="verdict-banner mt-6 ${statusClass}">
-            <div class="flex items-center gap-5 relative z-10">
+        <div class="verdict-banner ${statusClass}">
+            <div style="display:flex; align-items:center; gap:1.25rem; position:relative; z-index:10;">
                 <i class="fa-solid ${isSafe ? 'fa-shield-check' : (isHighRisk ? 'fa-triangle-exclamation' : 'fa-circle-info')}" style="font-size:2rem; flex-shrink:0;"></i>
                 <div style="min-width:0;">
                     <!-- FIX: verdict label and text vertically spaced cleanly -->
                     <h2 style="font-size:0.6rem; font-weight:900; text-transform:uppercase; letter-spacing:0.2em; opacity:0.65; margin-bottom:0.375rem;">Official Verdict Declaration</h2>
-                    <p style="font-size:1rem; font-weight:800; line-height:1.4; letter-spacing:-0.01em; color:#f1f5f9;">${finalVerdict}</p>
+                    <p style="font-size:1rem; font-weight:800; line-height:1.4; letter-spacing:-0.01em; color:${statusColor}; margin:0;">${finalVerdict}</p>
                 </div>
             </div>
             <div class="banner-bg-glow"></div>
@@ -1092,7 +1200,7 @@ function renderScanResult(containerId, data, scanType) {
             data: {
                 datasets: [{
                     data: [riskScore, 100 - riskScore],
-                    backgroundColor: [statusColor, 'rgba(255,255,255,0.05)'],
+                    backgroundColor: [statusColor, 'var(--bg-surface-alt)'],
                     borderWidth: 0,
                     borderRadius: 6,
                     cutout: '82%'
@@ -1106,9 +1214,13 @@ function renderScanResult(containerId, data, scanType) {
             }
         });
     }
-}function showToast(title, message, type = 'info', duration = 4000) {
+}function showToast(title, message, type = 'info', duration = 4000, force = false) {
     const toast = document.getElementById('toast');
     if (!toast) return;
+
+    if (!force && typeof isNotificationsEnabled === 'function' && !isNotificationsEnabled() && type !== 'error') {
+        return;
+    }
 
     const body = toast.querySelector('.toast-body');
     const line = toast.querySelector('.toast-line');
@@ -1182,9 +1294,11 @@ function toggleUserMenu() {
 // Helper to get auth headers
 function getAuthHeaders() {
     const userId = localStorage.getItem('user_id');
+    const userEmail = localStorage.getItem('user_email');
     return {
         'Content-Type': 'application/json',
-        'X-User-Id': userId || ''
+        'X-User-Id': userId || '',
+        'X-User-Email': userEmail || ''
     };
 }
 
@@ -1226,6 +1340,19 @@ function setupDragAndDrop(zoneId, inputId, textId) {
             text.innerText = `File selected: ${input.files[0].name}`;
         }
     });
+}
+
+function triggerActiveToolPrimaryAction() {
+    const activePanel = document.querySelector('.tool-panel:not(.hidden)');
+    if (!activePanel) return false;
+
+    const primaryButton = activePanel.querySelector(
+        '#url-scan-btn, #domain-check-btn, #web-scan-btn, #file-scan-btn, #email-scan-btn, #sms-scan-btn, #qr-scan-btn'
+    );
+
+    if (!primaryButton || primaryButton.disabled) return false;
+    primaryButton.click();
+    return true;
 }
 
 // === REUSABLE SCAN FUNCTIONS ===
@@ -1484,6 +1611,7 @@ function triggerRescan(type, input = null) {
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     restoreDashboardTab();
+    refreshProfileSettingsState();
 
     setupDragAndDrop('file-upload-zone', 'file-input', 'file-upload-text');
     setupDragAndDrop('qr-upload-zone', 'qr-input', 'qr-upload-text');
@@ -1536,12 +1664,37 @@ document.addEventListener('DOMContentLoaded', () => {
         webScanBtn.addEventListener('click', () => performWebScan());
     }
 
+    // Enter key should trigger the primary action button for the active scanner module.
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+
+        const activePanel = document.querySelector('.tool-panel:not(.hidden)');
+        if (!activePanel) return;
+
+        const activeEl = document.activeElement;
+        if (!activeEl || !activePanel.contains(activeEl)) return;
+
+        const tag = (activeEl.tagName || '').toLowerCase();
+        const isTypingControl = tag === 'input' || tag === 'textarea';
+        const isButtonLike = tag === 'button' || tag === 'a';
+
+        if (!isTypingControl || isButtonLike) return;
+
+        e.preventDefault();
+        triggerActiveToolPrimaryAction();
+    });
+
     // History search listener
     const historySearch = document.getElementById('history-search');
     if (historySearch) {
         historySearch.addEventListener('input', () => {
             fetchHistory();
         });
+    }
+
+    const changePasswordForm = document.getElementById('change-password-form');
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', submitChangePassword);
     }
 
     // Dropdown listener
@@ -1565,7 +1718,17 @@ function renderDomainResult(containerId, data) {
     wrapper.className = 'domain-result-container';
 
     if (data.error) {
-        wrapper.innerHTML = `<div class="domain-card border-red-500"><h3 class="text-red-500 text-lg font-bold">Error</h3><p>${data.error}</p></div>`;
+        wrapper.innerHTML = `
+            <div class="glass-card" style="border-top: 4px solid #ef4444;">
+                <div style="display:flex; align-items:center; gap:1rem; color:#ef4444;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size:1.875rem;"></i>
+                    <div>
+                        <h3 style="font-weight:700; font-size:1.125rem; margin-bottom:0.25rem;">Domain Lookup Error</h3>
+                        <p style="font-size:0.875rem; opacity:0.8; margin:0;">${data.error}</p>
+                    </div>
+                </div>
+            </div>
+        `;
         container.appendChild(wrapper);
         return;
     }
@@ -1577,11 +1740,10 @@ function renderDomainResult(containerId, data) {
     const scanTime = data.scan_time || new Date().toLocaleString();
     const engine = data.engine || 'Domain Intelligence Engine';
     const finalVerdict = data.final_verdict || `Domain classified as ${threatStatus}`;
-
-    // Styling based on risk
     const isSafe = threatStatus.toLowerCase().includes('safe') || threatStatus.toLowerCase().includes('benign');
     const isThreat = threatStatus.toLowerCase().includes('malware') || threatStatus.toLowerCase().includes('phishing');
-    const statusClass = isSafe ? 'domain-status-safe' : (isThreat ? 'domain-status-danger' : 'domain-status-warning');
+    const statusClass = isSafe ? 'status-safe' : (isThreat ? 'status-danger' : 'status-warning');
+    const statusColor = isSafe ? '#10b981' : (isThreat ? '#ef4444' : '#f59e0b');
     const statusIcon = isSafe ? 'fa-shield-check' : (isThreat ? 'fa-skull-crossbones' : 'fa-triangle-exclamation');
 
     const dInfo = data.domain_info || {};
@@ -1597,112 +1759,165 @@ function renderDomainResult(containerId, data) {
         ];
     }
 
+    // Keep domain forensic indicators concise and relevant for UI density.
+    indicators = indicators.filter((ind) => {
+        const label = String(ind.name || ind.label || '').toLowerCase().trim();
+        return label !== 'dns ns' && label !== 'dns ns record' && label !== 'hosting country';
+    });
+
+    if (!indicators.length) {
+        indicators = [
+            { name: 'Threat Status', value: threatStatus, status: isThreat ? 'danger' : (isSafe ? 'safe' : 'warning') },
+            { name: 'Registrar', value: dInfo.registrar || 'N/A', status: 'warning' },
+            { name: 'Domain Age', value: dInfo.domain_age || 'N/A', status: 'safe' }
+        ];
+    }
+
+    wrapper.className = 'premium-dashboard-container domain-result-container animate-fade-in';
     wrapper.innerHTML = `
-        <!-- 1. Summary Card -->
-        <div class="domain-card domain-summary border-l-4 ${statusClass}">
-            <div class="flex justify-between items-start flex-wrap gap-4">
-                <div>
-                    <h2 class="text-2xl font-black mb-2">${domain}</h2>
-                    <div class="flex gap-4 items-center flex-wrap">
-                        <span class="domain-badge ${statusClass} uppercase tracking-widest text-[10px] font-bold px-3 py-1 rounded-full"><i class="fa-solid ${statusIcon} mr-1"></i> ${threatStatus}</span>
-                        <span class="text-sm opacity-80"><i class="fa-solid fa-microchip mr-1"></i> ${engine}</span>
-                        <span class="text-sm opacity-80"><i class="fa-regular fa-clock mr-1"></i> ${scanTime}</span>
+        <!-- 1. Summary Header -->
+        <div class="glass-card summary-header" style="border-top: 4px solid ${statusColor};">
+            <div class="summary-info">
+                <div class="scan-target-banner" style="background:transparent; border:none; padding:0; margin:0; box-shadow:none;">
+                    <div class="scan-target-banner__top">
+                        <div class="scan-target-banner__heading">
+                            <span class="scan-target-banner__kicker">Intelligence Analysis Target</span>
+                            <p class="scan-target-banner__hint">Deep-scanning domain records and hosting reputation. This report is isolated to the asset below.</p>
+                        </div>
+                        <div class="scan-target-banner__proto" style="background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.1); color:#fff; padding: 0.5rem 1rem;">
+                            <i class="fa-solid fa-globe" aria-hidden="true"></i>
+                            <span class="scan-target-banner__proto-text">
+                                <span class="scan-target-banner__proto-title">Domain</span>
+                                <span class="scan-target-banner__proto-sub">Architecture</span>
+                            </span>
+                        </div>
+                    </div>
+                    <h2 class="scan-target-banner__url" style="font-size:1.5rem; font-weight:900; color:#fff; margin-bottom:0.75rem; margin-top:1rem; word-break:break-all; line-height:1.375; letter-spacing:-0.02em;">${domain}</h2>
+                </div>
+                <div class="summary-meta-row">
+                    <div class="meta-item">
+                        <i class="fa-solid fa-microchip"></i>
+                        <span>${engine}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fa-regular fa-clock"></i>
+                        <span>${scanTime}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="status-badge ${statusClass}">${threatStatus}</span>
                     </div>
                 </div>
-                <div class="text-right">
-                    <div class="text-3xl font-black ${statusClass}">${riskScore}/100</div>
-                    <div class="text-[10px] uppercase tracking-widest opacity-70">Risk Score (Conf: ${(confidence * 100).toFixed(0)}%)</div>
+            </div>
+            <div class="score-container summary-score-col">
+                <div class="chart-wrapper">
+                    <canvas id="domain-chart-${Date.now()}"></canvas>
+                    <div class="chart-center">
+                        <span style="font-size: 2.25rem; font-weight: 900; color: ${statusColor}; line-height: 1; letter-spacing: -0.04em; display:block; text-align:center;">${riskScore}</span>
+                        <span style="font-size: 8px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 4px; display:block; text-align:center;">Risk Index</span>
+                    </div>
+                </div>
+                <div style="text-align:center; margin-top: 8px;">
+                     <span style="font-size:10px; font-weight:900; color: var(--text-secondary); text-transform: uppercase; letter-spacing:0.1em;">
+                        Confidence: <span style="color: var(--text-primary);">${(confidence * 100).toFixed(1)}%</span>
+                     </span>
                 </div>
             </div>
         </div>
 
-        <div class="domain-grid mt-6">
-            <div class="domain-grid-column">
+        <div class="premium-grid">
+            <div class="results-grid-col">
                 <!-- 2. Domain Information -->
-                <div class="domain-card">
-                    <h3 class="domain-heading"><i class="fa-solid fa-globe mr-2"></i> Domain Information</h3>
-                    <div class="domain-kv-list">
-                        <div class="domain-kv"><span class="k">Registrar:</span><span class="v">${dInfo.registrar || 'N/A'}</span></div>
-                        <div class="domain-kv"><span class="k">Creation Date:</span><span class="v">${dInfo.creation_date || 'N/A'}</span></div>
-                        <div class="domain-kv"><span class="k">Expiry Date:</span><span class="v">${dInfo.expiry_date || 'N/A'}</span></div>
-                        <div class="domain-kv"><span class="k">Domain Age:</span><span class="v">${dInfo.domain_age || 'N/A'}</span></div>
-                        <div class="domain-kv"><span class="k">WHOIS Hidden:</span><span class="v">${dInfo.whois_hidden ? '<span class="text-amber-400">Yes</span>' : '<span class="text-emerald-400">No</span>'}</span></div>
+                <div class="glass-card result-glass-card">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-globe mr-2"></i> Infrastructure Profile</h3>
+                    <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Registrar:</span><span style="color:#e2e8f0; font-size:0.85rem; font-weight:700;">${dInfo.registrar || 'N/A'}</span></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Creation:</span><span style="color:#e2e8f0; font-size:0.85rem; font-weight:700;">${dInfo.creation_date || 'N/A'}</span></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Age:</span><span style="color:#10b981; font-size:0.85rem; font-weight:700;">${dInfo.domain_age || 'N/A'}</span></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">WHOIS:</span><span style="font-size:0.85rem; font-weight:700;">${dInfo.whois_hidden ? '<span class="text-amber-400">Hidden</span>' : '<span class="text-emerald-400">Public</span>'}</span></div>
                     </div>
                 </div>
 
-                <!-- 3. Hosting Information -->
-                <div class="domain-card mt-4">
-                    <h3 class="domain-heading"><i class="fa-solid fa-server mr-2"></i> Hosting Information</h3>
-                    <div class="domain-kv-list">
-                        <div class="domain-kv"><span class="k">IP Address:</span><span class="v">${hInfo.ip_address || 'N/A'}</span></div>
-                        <div class="domain-kv"><span class="k">Provider:</span><span class="v">${hInfo.hosting_provider || 'N/A'}</span></div>
-                        <div class="domain-kv"><span class="k">Country:</span><span class="v">${hInfo.country || 'N/A'}</span></div>
-                    </div>
-                </div>
-
-                <!-- 4. DNS Records -->
-                <div class="domain-card mt-4">
-                    <h3 class="domain-heading"><i class="fa-solid fa-network-wired mr-2"></i> DNS Records Matrix</h3>
-                    <div class="domain-dns-grid">
-                        ${Object.entries(dns).map(([type, status]) => `
-                            <div class="domain-dns-box">
-                                <span class="type">${type}</span>
-                                <span class="status ${status.toLowerCase() === 'present' ? 'text-emerald-400' : 'text-red-400'}">${status}</span>
-                            </div>
-                        `).join('')}
+                <!-- 3. Hosting Details -->
+                <div class="glass-card result-glass-card domain-hosting-card">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-server mr-2"></i> Hosting Architecture</h3>
+                    <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Primary IP:</span><span style="color:#3b82f6; font-size:0.85rem; font-weight:700; font-family:monospace;">${hInfo.ip_address || 'N/A'}</span></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Provider:</span><span style="color:#e2e8f0; font-size:0.85rem; font-weight:700; font-family:monospace;">${hInfo.hosting_provider || 'N/A'}</span></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Country:</span><span style="color:#e2e8f0; font-size:0.85rem; font-weight:700;">${hInfo.country || 'N/A'}</span></div>
                     </div>
                 </div>
             </div>
 
-            <div class="domain-grid-column">
-                <!-- 5. Security Checks -->
-                <div class="domain-card">
-                    <h3 class="domain-heading"><i class="fa-solid fa-shield-halved mr-2"></i> Infrastructure Security Checks</h3>
-                    <div class="domain-checklist">
-                        ${checks.map(chk => {
-        let cl = 'domain-chk-pass';
-        let i = '<i class="fa-solid fa-check"></i>';
-        if (chk.status === 'failed') { cl = 'domain-chk-fail'; i = '<i class="fa-solid fa-xmark"></i>'; }
-        if (chk.status === 'warning') { cl = 'domain-chk-warn'; i = '<i class="fa-solid fa-exclamation"></i>'; }
-        return `
-                                <div class="domain-chk-item ${cl}">
-                                    <div class="icon">${i}</div>
-                                    <div class="name">${chk.name}</div>
-                                    <div class="status">${chk.status}</div>
-                                </div>
-                            `;
-    }).join('')}
+            <div class="results-grid-col">
+                <!-- 4. DNS Matrix -->
+                <div class="glass-card result-glass-card">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-network-wired mr-2"></i> DNS Records Matrix</h3>
+                    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.5rem;">
+                        ${Object.entries(dns).map(([type, status]) => `
+                            <div style="background:rgba(255,255,255,0.03); padding:0.5rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05); text-align:center;">
+                                <div style="font-size:0.6rem; font-weight:800; opacity:0.5; text-transform:uppercase;">${type}</div>
+                                <div style="font-size:0.8rem; font-weight:700; color:${status.toLowerCase() === 'present' ? '#10b981' : '#ef4444'};">${status}</div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
 
-                <div class="domain-card mt-4">
-                    <h3 class="domain-heading"><i class="fa-solid fa-gauge-high mr-2"></i>Technical Indicators</h3>
-                    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.625rem;">
+                <!-- 5. Technical Indicators -->
+                <div class="glass-card result-glass-card domain-forensic-card">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-gauge-high mr-2"></i> Forensic Indicators</h3>
+                    <div class="result-indicators-grid domain-indicators-grid">
                         ${renderIndicatorGridCells(indicators)}
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 8. Verdict Banner -->
-        <div class="domain-verdict mt-6 ${statusClass}">
-            <div class="flex items-center gap-4">
-                <i class="fa-solid ${statusIcon} text-3xl"></i>
-                <div>
-                    <h4 class="text-[10px] uppercase tracking-widest opacity-80 mb-1">Final Intelligence Verdict</h4>
-                    <p class="text-lg font-bold">${finalVerdict}</p>
-                </div>
-            </div>
+        <!-- 6. Action Buttons -->
+        <div class="action-buttons-grid" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+            <button class="neon-btn btn-secondary" onclick="triggerRescan('Domain', '${domain.replace(/'/g, "\\'")}')"><i class="fa-solid fa-rotate-right"></i> Rescan Artifact</button>
+            <button class="neon-btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-file-pdf"></i> Download Report</button>
+            <button class="neon-btn btn-danger" onclick="addToBlacklist('${domain.replace(/'/g, "\\'")}', 'Domain')"><i class="fa-solid fa-ban"></i> Add to Blacklist</button>
+            <button class="neon-btn btn-success" style="border-color:rgba(16,185,129,0.3);color:#10b981;" onclick="addToWhitelist('${domain.replace(/'/g, "\\'")}', 'Domain')"><i class="fa-solid fa-shield-check"></i> Add to Whitelist</button>
         </div>
 
-        <!-- 9. Actions -->
-        <div class="mt-6 flex gap-3">
-             <button class="domain-badge domain-status-warning px-4 py-2 rounded-lg" onclick="triggerRescan('Domain', '${domain.replace(/'/g, "\\'")}')"><i class="fa-solid fa-rotate-right mr-2"></i> Rescan Domain</button>
-             <button class="domain-badge domain-status-safe px-4 py-2 rounded-lg" onclick="window.print()"><i class="fa-solid fa-file-pdf mr-2"></i> Print Report</button>
+        <!-- 7. Verdict Banner -->
+        <div class="verdict-banner ${statusClass}">
+            <div style="display:flex; align-items:center; gap:1.25rem; position:relative; z-index:10;">
+                <i class="fa-solid ${statusIcon}" style="font-size:2rem; flex-shrink:0;"></i>
+                <div style="min-width:0;">
+                    <h2 style="font-size:0.6rem; font-weight:900; text-transform:uppercase; letter-spacing:0.2em; opacity:0.65; margin-bottom:0.375rem;">Official Intelligence Verdict</h2>
+                    <p style="font-size:1rem; font-weight:800; line-height:1.4; letter-spacing:-0.01em; color:${statusColor}; margin:0;">${finalVerdict}</p>
+                </div>
+            </div>
+            <div class="banner-bg-glow"></div>
         </div>
     `;
 
     container.appendChild(wrapper);
+
+    // Initialise Chart if in DOM
+    setTimeout(() => {
+        const canvas = wrapper.querySelector('canvas');
+        if (canvas) {
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [riskScore, 100 - riskScore],
+                        backgroundColor: [statusColor, 'var(--bg-surface-alt)'],
+                        borderWidth: 0,
+                        borderRadius: 6,
+                        cutout: '82%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { tooltip: { enabled: false }, legend: { display: false } }
+                }
+            });
+        }
+    }, 100);
 }
 
 // === WEBSITE INSPECTOR SPECIFIC UI RENDERING ===
@@ -1715,7 +1930,17 @@ function renderWebsiteResult(containerId, data) {
     wrapper.className = 'website-result-container';
 
     if (data.error) {
-        wrapper.innerHTML = `<div class="website-card"><h3 class="text-red-400 font-bold text-lg mb-2">Inspection Error</h3><p>${data.error}</p></div>`;
+        wrapper.innerHTML = `
+            <div class="glass-card" style="border-top: 4px solid #ef4444;">
+                <div style="display:flex; align-items:center; gap:1rem; color:#ef4444;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size:1.875rem;"></i>
+                    <div>
+                        <h3 style="font-weight:700; font-size:1.125rem; margin-bottom:0.25rem;">Website Inspection Error</h3>
+                        <p style="font-size:0.875rem; opacity:0.8; margin:0;">${data.error}</p>
+                    </div>
+                </div>
+            </div>
+        `;
         container.appendChild(wrapper);
         return;
     }
@@ -1730,8 +1955,9 @@ function renderWebsiteResult(containerId, data) {
 
     const isSafe = threatStatus.toLowerCase().includes('safe') || threatStatus.toLowerCase().includes('benign');
     const isThreat = threatStatus.toLowerCase().includes('malware') || threatStatus.toLowerCase().includes('phishing');
-    const wClass = isSafe ? 'ws-safe' : (isThreat ? 'ws-danger' : 'ws-warning');
     const wIcon = isSafe ? 'fa-shield-check' : (isThreat ? 'fa-skull-crossbones' : 'fa-triangle-exclamation');
+    const statusColor = isSafe ? '#10b981' : (isThreat ? '#ef4444' : '#f59e0b');
+    const statusClass = isSafe ? 'status-safe' : (isThreat ? 'status-danger' : 'status-warning');
 
     const pInfo = data.page_info || {};
     const secAna = data.security_analysis || {};
@@ -1743,130 +1969,201 @@ function renderWebsiteResult(containerId, data) {
         indicators = [
             { name: 'HTTPS', value: secAna.https ? 'Yes' : 'No', status: secAna.https ? 'safe' : 'danger' },
             { name: 'Suspicious JS', value: secAna.suspicious_js ? 'Flagged' : 'No', status: secAna.suspicious_js ? 'warning' : 'safe' },
-            { name: 'Hidden Forms', value: secAna.hidden_forms ? 'Yes' : 'No', status: secAna.hidden_forms ? 'warning' : 'safe' },
-            { name: 'External Scripts', value: secAna.external_scripts ? 'Yes' : 'No', status: secAna.external_scripts ? 'warning' : 'safe' }
+            { name: 'Hidden Forms', value: secAna.hidden_forms ? 'Yes' : 'No', status: secAna.hidden_forms ? 'warning' : 'safe' }
         ];
     }
 
-    const boolRow = (label, val) => `
-        <div class="ws-kv">
-            <span class="ws-k">${label}</span>
-            <span class="ws-v ${val ? 'ws-yes' : 'ws-no'}">${val ? '✔ Yes' : '✖ No'}</span>
-        </div>`;
+    // Keep behavioral indicators concise and avoid noisy infra-only values.
+    indicators = indicators.filter((ind) => {
+        const label = String(ind.name || ind.label || '').toLowerCase().trim();
+        return label !== 'dns ns'
+            && label !== 'dns ns record'
+            && label !== 'hosting country'
+            && label !== 'password field'
+            && label !== 'external script domains';
+    });
 
+    if (!indicators.length) {
+        indicators = [
+            { name: 'HTTPS', value: secAna.https ? 'Yes' : 'No', status: secAna.https ? 'safe' : 'danger' },
+            { name: 'Suspicious JS', value: secAna.suspicious_js ? 'Flagged' : 'No', status: secAna.suspicious_js ? 'warning' : 'safe' },
+            { name: 'Hidden Forms', value: secAna.hidden_forms ? 'Yes' : 'No', status: secAna.hidden_forms ? 'warning' : 'safe' }
+        ];
+    }
+
+    wrapper.className = 'premium-dashboard-container website-result-container animate-fade-in';
     wrapper.innerHTML = `
-        <!-- 1. Summary -->
-        <div class="website-card ws-summary ${wClass}">
-            <div class="flex justify-between items-start flex-wrap gap-4">
-                <div>
-                    <div class="text-[10px] text-slate-400 uppercase tracking-[0.18em] font-bold mb-2">Website Inspector Result</div>
-                    <h2 class="text-2xl font-black mb-3 break-all">${url}</h2>
-                    <div class="flex gap-3 flex-wrap items-center">
-                        <span class="ws-badge ${wClass}"><i class="fa-solid ${wIcon} mr-1"></i>${threatStatus}</span>
-                        <span class="text-sm opacity-70"><i class="fa-solid fa-microchip mr-1"></i>${engine}</span>
-                        <span class="text-sm opacity-70"><i class="fa-regular fa-clock mr-1"></i>${scanTime}</span>
+        <!-- 1. Summary Header -->
+        <div class="glass-card summary-header" style="border-top: 4px solid ${statusColor};">
+            <div class="summary-info">
+                <div class="scan-target-banner" style="background:transparent; border:none; padding:0; margin:0; box-shadow:none;">
+                    <div class="scan-target-banner__top">
+                        <div class="scan-target-banner__heading">
+                            <span class="scan-target-banner__kicker">Website Content Analysis</span>
+                            <p class="scan-target-banner__hint">Analyzing page source, script behaviors, and 3rd-party resource integrations.</p>
+                        </div>
+                        <div class="scan-target-banner__proto" style="background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.1); color:#fff; padding: 0.5rem 1rem;">
+                            <i class="fa-solid fa-code" aria-hidden="true"></i>
+                            <span class="scan-target-banner__proto-text">
+                                <span class="scan-target-banner__proto-title">Static</span>
+                                <span class="scan-target-banner__proto-sub">Intelligence</span>
+                            </span>
+                        </div>
+                    </div>
+                    <h2 class="scan-target-banner__url" style="font-size:1.5rem; font-weight:900; color:#fff; margin-bottom:0.75rem; margin-top:1rem; word-break:break-all; line-height:1.375; letter-spacing:-0.02em;">${url}</h2>
+                </div>
+                <div class="summary-meta-row mt-4">
+                    <div class="meta-item">
+                        <i class="fa-solid fa-microchip"></i>
+                        <span>${engine}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fa-regular fa-clock"></i>
+                        <span>${scanTime}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="status-badge ${statusClass}">${threatStatus}</span>
                     </div>
                 </div>
-                <div class="text-right">
-                    <div class="text-4xl font-black ${wClass}">${riskScore}/100</div>
-                    <div class="text-[10px] uppercase tracking-widest opacity-60 mt-1">Risk Score · Conf ${(confidence * 100).toFixed(0)}%</div>
+            </div>
+            <div class="score-container summary-score-col">
+                <div class="chart-wrapper">
+                    <canvas id="web-chart-${Date.now()}"></canvas>
+                    <div class="chart-center">
+                        <span style="font-size: 2.25rem; font-weight: 900; color: ${statusColor}; line-height: 1; letter-spacing: -0.04em; display:block; text-align:center;">${riskScore}</span>
+                        <span style="font-size: 8px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 4px; display:block; text-align:center;">Risk Index</span>
+                    </div>
+                </div>
+                <div style="text-align:center; margin-top: 8px;">
+                     <span style="font-size:10px; font-weight:900; color: var(--text-secondary); text-transform: uppercase; letter-spacing:0.1em;">
+                        Confidence: <span style="color: var(--text-primary);">${(confidence * 100).toFixed(1)}%</span>
+                     </span>
                 </div>
             </div>
         </div>
 
-        <div class="website-grid mt-5">
-            <!-- Left Column -->
-            <div class="ws-col">
-                <!-- 2. Page Information -->
-                <div class="website-card">
-                    <h3 class="ws-heading"><i class="fa-solid fa-file-code mr-2"></i>Page Information</h3>
-                    <div class="ws-kv-list">
-                        <div class="ws-kv"><span class="ws-k">Title:</span><span class="ws-v">${pInfo.title || 'N/A'}</span></div>
-                        <div class="ws-kv"><span class="ws-k">Page Size:</span><span class="ws-v">${pInfo.page_size || 'N/A'}</span></div>
-                        <div class="ws-kv"><span class="ws-k">Load Time:</span><span class="ws-v">${pInfo.load_time || 'N/A'}</span></div>
-                        <div class="ws-kv"><span class="ws-k">Scripts:</span><span class="ws-v">${pInfo.scripts ?? 0}</span></div>
-                        <div class="ws-kv"><span class="ws-k">External Links:</span><span class="ws-v">${pInfo.external_links ?? 0}</span></div>
-                        <div class="ws-kv"><span class="ws-k">Forms:</span><span class="ws-v">${pInfo.forms ?? 0}</span></div>
-                        <div class="ws-kv"><span class="ws-k">iFrames:</span><span class="ws-v">${pInfo.iframes ?? 0}</span></div>
+        <div class="premium-grid mt-4">
+            <div class="results-grid-col">
+                <!-- 2. Page Profile -->
+                <div class="glass-card result-glass-card">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-file-invoice mr-2"></i> Document Fingerprint</h3>
+                    <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Page Title:</span><span style="color:#e2e8f0; font-size:0.85rem; font-weight:700; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${pInfo.title || 'N/A'}</span></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Payload Size:</span><span style="color:#e2e8f0; font-size:0.85rem; font-weight:700;">${pInfo.page_size || 'N/A'}</span></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Load Latency:</span><span style="color:#10b981; font-size:0.85rem; font-weight:700;">${pInfo.load_time || 'N/A'}</span></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;"><span style="color:#94a3b8; font-size:0.8rem; font-weight:600;">Active Scripts:</span><span style="color:#e2e8f0; font-size:0.85rem; font-weight:700;">${pInfo.scripts ?? 0}</span></div>
                     </div>
                 </div>
 
-                <!-- 3. Security Analysis -->
-                <div class="website-card mt-4">
-                    <h3 class="ws-heading"><i class="fa-solid fa-lock mr-2"></i>Security Analysis</h3>
-                    <div class="ws-kv-list">
-                        ${boolRow('HTTPS Enabled', secAna.https)}
-                        ${boolRow('SSL Certificate Valid', secAna.ssl_valid)}
-                        ${boolRow('Mixed Content', secAna.mixed_content)}
-                        ${boolRow('Suspicious JavaScript', secAna.suspicious_js)}
-                        ${boolRow('Hidden Forms', secAna.hidden_forms)}
-                        ${boolRow('iFrames Present', secAna.iframes_present)}
-                        ${boolRow('External Scripts', secAna.external_scripts)}
-                        ${boolRow('Redirect Detected', secAna.redirect_detected)}
+                <!-- 3. Security Hardening -->
+                <div class="glass-card result-glass-card mt-4">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-shield-virus mr-2"></i> Security Posture</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        ${Object.entries(secAna).map(([k, v]) => `
+                            <div style="background:rgba(255,255,255,0.03); padding:0.6rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase;">${k.replace(/_/g, ' ')}</span>
+                                <i class="fa-solid ${v ? 'fa-circle-check text-emerald-400' : 'fa-circle-xmark text-slate-600'}" style="font-size:0.85rem;"></i>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
 
-                <!-- 4. Technologies -->
-                <div class="website-card mt-4">
-                    <h3 class="ws-heading"><i class="fa-solid fa-layer-group mr-2"></i>Technology Detection</h3>
-                    <div class="ws-tags">${techs.map(t => `<span class="ws-tag">${t}</span>`).join('')}</div>
-                </div>
-
-                <!-- 5. External Resources -->
-                <div class="website-card mt-4">
-                    <h3 class="ws-heading"><i class="fa-solid fa-arrow-up-right-from-square mr-2"></i>External Resources</h3>
-                    <div class="ws-tags">${extRes.map(r => `<span class="ws-tag ws-tag-ext">${r}</span>`).join('')}</div>
+                <!-- 4 & 5. Tech & Resources (SIDE BY SIDE) -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;" class="mt-4">
+                    <div class="glass-card result-glass-card" style="margin:0; padding:1.25rem;">
+                        <h3 class="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest"><i class="fa-solid fa-layer-group mr-1.5"></i> Platform Stack</h3>
+                        <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
+                            ${techs.map(t => `<span style="background:rgba(6,182,212,0.1); color:#22d3ee; border:1px solid rgba(6,182,212,0.2); border-radius:4px; padding:2px 6px; font-size:10px; font-weight:700;">${t}</span>`).join('')}
+                            ${techs.length === 0 ? '<span style="opacity:0.4; font-size:10px;">None Detected</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="glass-card result-glass-card" style="margin:0; padding:1.25rem;">
+                        <h3 class="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest"><i class="fa-solid fa-link-slash mr-1.5"></i> External Deps</h3>
+                        <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
+                            ${extRes.map(r => `<span style="background:rgba(251,191,36,0.1); color:#fbbf24; border:1px solid rgba(251,191,36,0.2); border-radius:4px; padding:2px 6px; font-size:10px; font-weight:700;">${r}</span>`).join('')}
+                            ${extRes.length === 0 ? '<span style="opacity:0.4; font-size:10px;">None Detected</span>' : ''}
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Right Column -->
-            <div class="ws-col">
-                <!-- 6. Security Checklist -->
-                <div class="website-card">
-                    <h3 class="ws-heading"><i class="fa-solid fa-shield-halved mr-2"></i>Security Checklist</h3>
-                    <div class="website-checklist">
+            <div class="results-grid-col">
+                <!-- 6. Diagnostic Checklist -->
+                <div class="glass-card result-glass-card">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-clipboard-check mr-2"></i> Integrity Checklist</h3>
+                    <div style="display:flex; flex-direction:column; gap:0.5rem;">
                         ${checks.map(chk => {
-        let cl = 'ws-chk-pass', ic = '<i class="fa-solid fa-check"></i>';
-        if (chk.status === 'failed') { cl = 'ws-chk-fail'; ic = '<i class="fa-solid fa-xmark"></i>'; }
-        if (chk.status === 'warning') { cl = 'ws-chk-warn'; ic = '<i class="fa-solid fa-exclamation"></i>'; }
-        return `
-                            <div class="ws-chk-item ${cl}">
-                                <div class="icon">${ic}</div>
-                                <div class="name">${chk.name}</div>
-                                <div class="status">${chk.status}</div>
-                            </div>`;
-    }).join('')}
+                            let statusColor2 = chk.status === 'success' || chk.status === 'passed' ? '#10b981' : (chk.status === 'failed' ? '#ef4444' : '#f59e0b');
+                            let statusIcon2 = chk.status === 'success' || chk.status === 'passed' ? 'fa-circle-check' : (chk.status === 'failed' ? 'fa-circle-xmark' : 'fa-triangle-exclamation');
+                            return `
+                                <div style="display:flex; align-items:center; gap:0.75rem; padding:0.6rem 0.8rem; background:var(--bg-surface-alt); border-radius:10px; border:1px solid var(--border-dim);">
+                                    <i class="fa-solid ${statusIcon2}" style="color:${statusColor2}; font-size:1rem;"></i>
+                                    <div style="flex-grow:1;">
+                                        <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary);">${chk.name}</div>
+                                        <div style="font-size:0.65rem; color:var(--text-secondary); font-weight:600;">${chk.status.toUpperCase()}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
 
-                <div class="website-card mt-4">
-                    <h3 class="ws-heading"><i class="fa-solid fa-gauge-high mr-2"></i>Technical Indicators</h3>
-                    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.625rem;">
+                <!-- 7. Forensic Indicators -->
+                <div class="glass-card result-glass-card mt-4 website-behavior-card">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-gauge-high mr-2"></i> Behavioral Indicators</h3>
+                    <div class="result-indicators-grid website-behavior-indicators-grid">
                         ${renderIndicatorGridCells(indicators)}
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 8. Verdict Banner -->
-        <div class="website-verdict mt-5 ${wClass}">
-            <div class="flex items-center gap-4">
-                <i class="fa-solid ${wIcon} text-3xl"></i>
-                <div>
-                    <h4 class="text-[10px] uppercase tracking-widest opacity-75 mb-1">Final Security Verdict</h4>
-                    <p class="text-lg font-bold">${finalVerdict}</p>
-                </div>
-            </div>
+        <!-- 8. Actions -->
+        <div class="action-buttons-grid mt-4" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+            <button class="neon-btn btn-secondary" onclick="triggerRescan('Website', '${url.replace(/'/g, "\\'")}')"><i class="fa-solid fa-rotate-right"></i> Rescan Page</button>
+            <button class="neon-btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-file-pdf"></i> Download Report</button>
+            <button class="neon-btn btn-danger" onclick="addToBlacklist('${url.replace(/'/g, "\\'")}', 'Website')"><i class="fa-solid fa-ban"></i> Add to Blacklist</button>
+            <button class="neon-btn btn-success" style="border-color:rgba(16,185,129,0.3);color:#10b981;" onclick="addToWhitelist('${url.replace(/'/g, "\\'")}', 'Website')"><i class="fa-solid fa-shield-check"></i> Add to Whitelist</button>
         </div>
 
-        <!-- 9. Actions -->
-        <div class="mt-5 flex gap-3">
-             <button class="ws-badge ws-warning px-4 py-2 rounded-lg" onclick="triggerRescan('Web', '${url.replace(/'/g, "\\'")}')"><i class="fa-solid fa-rotate-right mr-2"></i> Rescan Website</button>
-             <button class="ws-badge ws-safe px-4 py-2 rounded-lg" onclick="window.print()"><i class="fa-solid fa-file-pdf mr-2"></i> Export PDF</button>
+        <!-- 9. Verdict Banner -->
+        <div class="verdict-banner ${statusClass}">
+            <div style="display:flex; align-items:center; gap:1.25rem; position:relative; z-index:10;">
+                <i class="fa-solid ${wIcon}" style="font-size:2rem; flex-shrink:0;"></i>
+                <div style="min-width:0;">
+                    <h2 style="font-size:0.6rem; font-weight:900; text-transform:uppercase; letter-spacing:0.2em; opacity:0.65; margin-bottom:0.375rem;">Final Security Verdict</h2>
+                    <p style="font-size:1rem; font-weight:800; line-height:1.4; letter-spacing:-0.01em; color:${statusColor}; margin:0;">${finalVerdict}</p>
+                </div>
+            </div>
+            <div class="banner-bg-glow"></div>
         </div>
     `;
 
     container.appendChild(wrapper);
+
+    // Initialise Chart if in DOM
+    setTimeout(() => {
+        const canvas = wrapper.querySelector('canvas');
+        if (canvas) {
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [riskScore, 100 - riskScore],
+                        backgroundColor: [statusColor, 'var(--bg-surface-alt)'],
+                        borderWidth: 0,
+                        borderRadius: 6,
+                        cutout: '82%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { tooltip: { enabled: false }, legend: { display: false } }
+                }
+            });
+        }
+    }, 100);
 }
 
 // === FILE SCANNER SPECIFIC UI RENDERING ===
@@ -1893,146 +2190,180 @@ function renderFileResult(containerId, data) {
     const scanTime = data.scan_time || new Date().toLocaleString();
     const engine = data.engine || 'AI Deep File Analysis Engine';
     const verdict = data.final_verdict || `File classified as ${threat}.`;
-
-    const isSafe = threat.toLowerCase().includes('safe') || threat.toLowerCase().includes('benign');
-    const isThreat = threat.toLowerCase().includes('malware');
-    const fClass = isSafe ? 'ff-safe' : (isThreat ? 'ff-danger' : 'ff-warning');
-    const fIcon = isSafe ? 'fa-shield-check' : (isThreat ? 'fa-biohazard' : 'fa-triangle-exclamation');
-
     const hash = data.hash_info || {};
     const mal = data.malware_analysis || {};
     const stat = data.static_analysis || {};
     const checks = data.security_checks || [];
-    const tl = data.timeline || [];
 
-    const boolCell = (val) => val
-        ? '<span class="ff-yes">✔ Yes</span>'
-        : '<span class="ff-no">✖ No</span>';
+    const isSafe = threat.toLowerCase().includes('safe') || threat.toLowerCase().includes('benign');
+    const isThreat = threat.toLowerCase().includes('malware');
+    const statusColor = isSafe ? '#10b981' : (isThreat ? '#ef4444' : '#f59e0b');
+    const statusClass = isSafe ? 'status-safe' : (isThreat ? 'status-danger' : 'status-warning');
+    const fIcon = isSafe ? 'fa-shield-check' : (isThreat ? 'fa-biohazard' : 'fa-triangle-exclamation');
 
+    wrapper.className = 'premium-dashboard-container email-result-modern animate-fade-in';
     wrapper.innerHTML = `
-        <!-- 1. Summary -->
-        <div class="file-card ff-summary ${fClass}">
-            <div class="flex justify-between items-start flex-wrap gap-4">
-                <div>
-                    <div class="text-[10px] text-slate-400 uppercase tracking-[0.18em] font-bold mb-2">File Scanner Result</div>
-                    <h2 class="text-2xl font-black mb-1">${filename}</h2>
-                    <div class="text-sm text-slate-400 mb-3">${fileType} &nbsp;·&nbsp; ${fileSize}</div>
-                    <div class="flex gap-3 flex-wrap items-center">
-                        <span class="ff-badge ${fClass}"><i class="fa-solid ${fIcon} mr-1"></i>${threat}</span>
-                        <span class="text-sm opacity-70"><i class="fa-solid fa-microchip mr-1"></i>${engine}</span>
-                        <span class="text-sm opacity-70"><i class="fa-regular fa-clock mr-1"></i>${scanTime}</span>
+        <!-- 1. Summary Header -->
+        <div class="glass-card summary-header" style="border-top: 4px solid ${statusColor};">
+            <div class="summary-info">
+                <div class="scan-target-banner" style="background:transparent; border:none; padding:0; margin:0; box-shadow:none;">
+                    <div class="scan-target-banner__top">
+                        <div class="scan-target-banner__heading">
+                            <span class="scan-target-banner__kicker">Binary Asset Analysis</span>
+                            <p class="scan-target-banner__hint">Analyzing file structure, entropy, and embedded code patterns for malicious indicators.</p>
+                        </div>
+                        <div class="scan-target-banner__proto" style="background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.1); color:#fff; padding: 0.5rem 1rem;">
+                            <i class="fa-solid fa-file-shield" aria-hidden="true"></i>
+                            <span class="scan-target-banner__proto-text">
+                                <span class="scan-target-banner__proto-title">${fileType}</span>
+                                <span class="scan-target-banner__proto-sub">${fileSize}</span>
+                            </span>
+                        </div>
+                    </div>
+                    <h2 class="scan-target-banner__url text-2xl font-black text-white mb-2 mt-4 break-all leading-tight tracking-tight">${filename}</h2>
+                </div>
+                <div class="summary-meta-row mt-4">
+                    <div class="meta-item">
+                        <i class="fa-solid fa-microchip"></i>
+                        <span>${engine}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fa-regular fa-clock"></i>
+                        <span>${scanTime}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="status-badge ${statusClass}">${threat}</span>
                     </div>
                 </div>
-                <div class="text-right">
-                    <div class="text-4xl font-black ${fClass}">${riskScore}/100</div>
-                    <div class="text-[10px] uppercase tracking-widest opacity-60 mt-1">Risk Score · Conf ${(confidence * 100).toFixed(0)}%</div>
+            </div>
+            <div class="summary-score-col">
+                <div class="chart-wrapper">
+                    <canvas id="file-chart-${Date.now()}"></canvas>
+                    <div class="chart-center">
+                        <span style="font-size:1.5rem; font-weight:800; color:${statusColor};">${riskScore}</span>
+                        <span style="font-size:0.5rem; font-weight:700; opacity:0.6; text-transform:uppercase;">Risk</span>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="file-grid mt-5">
-            <!-- Left Column -->
-            <div class="ff-col">
-                <!-- 2. Hash Information -->
-                <div class="file-card">
-                    <h3 class="ff-heading"><i class="fa-solid fa-fingerprint mr-2"></i>File Hash Information</h3>
-                    <div class="ff-kv-list">
-                        <div class="ff-kv"><span class="ff-k">MD5:</span><span class="ff-v ff-mono">${hash.md5 || 'N/A'}</span></div>
-                        <div class="ff-kv"><span class="ff-k">SHA1:</span><span class="ff-v ff-mono">${hash.sha1 || 'N/A'}</span></div>
-                        <div class="ff-kv"><span class="ff-k">SHA256:</span><span class="ff-v ff-mono ff-small">${hash.sha256 || 'N/A'}</span></div>
-                        <div class="ff-kv"><span class="ff-k">Entropy:</span><span class="ff-v">${hash.entropy || 'N/A'}</span></div>
-                        <div class="ff-kv"><span class="ff-k">MIME Type:</span><span class="ff-v">${hash.mime_type || 'N/A'}</span></div>
+        <div class="premium-grid mt-4">
+            <div class="results-grid-col">
+                <!-- 2. Hash & Integrity -->
+                <div class="glass-card result-glass-card">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-fingerprint mr-2"></i> Integrity Signatures</h3>
+                    <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                        <div style="display:flex; flex-direction:column; gap:0.25rem; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:0.5rem;">
+                            <span style="color:var(--text-secondary); font-size:0.7rem; font-weight:700; text-transform:uppercase;">MD5 Hash</span>
+                            <span style="color:var(--text-primary); font-size:0.8rem; font-family:monospace; word-break:break-all;">${hash.md5 || 'N/A'}</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                            <span style="color:var(--text-secondary); font-size:0.7rem; font-weight:700; text-transform:uppercase;">SHA-256 Signature</span>
+                            <span style="color:var(--text-primary); font-size:0.8rem; font-family:monospace; word-break:break-all;">${hash.sha256 || 'N/A'}</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 3. Malware Analysis -->
-                <div class="file-card mt-4">
-                    <h3 class="ff-heading"><i class="fa-solid fa-biohazard mr-2"></i>Malware Analysis</h3>
-                    <div class="ff-kv-list">
-                        <div class="ff-kv"><span class="ff-k">Malware Detected:</span><span class="ff-v">${boolCell(mal.malware_detected)}</span></div>
-                        <div class="ff-kv"><span class="ff-k">Malware Type:</span><span class="ff-v">${mal.malware_type || 'N/A'}</span></div>
-                        <div class="ff-kv"><span class="ff-k">Suspicious Behavior:</span><span class="ff-v">${boolCell(mal.suspicious_behavior)}</span></div>
-                        <div class="ff-kv"><span class="ff-k">Packed File:</span><span class="ff-v">${boolCell(mal.packed_file)}</span></div>
-                        <div class="ff-kv"><span class="ff-k">Obfuscation:</span><span class="ff-v">${boolCell(mal.obfuscation)}</span></div>
-                        <div class="ff-kv"><span class="ff-k">Permissions:</span><span class="ff-v">${mal.permissions_requested || 'N/A'}</span></div>
-                        ${mal.suspicious_strings && mal.suspicious_strings.length > 0 ? `
-                        <div class="ff-kv ff-kv-col"><span class="ff-k">Suspicious Strings:</span><div class="ff-tags mt-1">${mal.suspicious_strings.map(s => `<span class="ff-tag ff-tag-warn">${s}</span>`).join('')}</div></div>` : ''}
-                    </div>
-                </div>
-
-                <!-- 4. Static Analysis -->
-                <div class="file-card mt-4">
-                    <h3 class="ff-heading"><i class="fa-solid fa-code mr-2"></i>Static Analysis</h3>
-                    <div class="ff-kv-list">
-                        <div class="ff-kv"><span class="ff-k">Strings Found:</span><span class="ff-v">${stat.strings_found ?? 'N/A'}</span></div>
-                        <div class="ff-kv"><span class="ff-k">Suspicious Keywords:</span><span class="ff-v ${stat.suspicious_keywords > 0 ? 'ff-warn-text' : ''}">${stat.suspicious_keywords ?? 0}</span></div>
-                        <div class="ff-kv"><span class="ff-k">File Sections:</span><span class="ff-v">${stat.file_sections || 'N/A'}</span></div>
-                        <div class="ff-kv"><span class="ff-k">Digital Signature:</span><span class="ff-v">${stat.digital_signature || 'N/A'}</span></div>
-                        ${stat.embedded_urls && stat.embedded_urls.length > 0 ? `
-                        <div class="ff-kv ff-kv-col"><span class="ff-k">Embedded URLs:</span><div class="ff-tags mt-1">${stat.embedded_urls.map(u => `<span class="ff-tag ff-tag-ext">${u}</span>`).join('')}</div></div>` : ''}
+                <!-- 3. Malware Investigation -->
+                <div class="glass-card result-glass-card mt-4">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-virus-slash mr-2"></i> Malware Analysis</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        ${Object.entries(mal).map(([k, v]) => `
+                            <div style="background:var(--bg-surface-alt); padding:0.6rem; border-radius:8px; border:1px solid var(--border-dim); display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:0.6rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">${k.replace(/_/g, ' ')}</span>
+                                <i class="fa-solid ${v ? 'fa-circle-xmark text-red-400' : 'fa-circle-check text-emerald-400'}" style="font-size:0.85rem;"></i>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             </div>
 
-            <!-- Right Column -->
-            <div class="ff-col">
-                <!-- 5. Security Checks -->
-                <div class="file-card">
-                    <h3 class="ff-heading"><i class="fa-solid fa-shield-halved mr-2"></i>Security Checks</h3>
-                    <div class="file-checklist">
+            <div class="results-grid-col">
+                <!-- 4. Security Verification -->
+                <div class="glass-card result-glass-card">
+                    <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-clipboard-check mr-2"></i> Security Verification</h3>
+                    <div style="display:flex; flex-direction:column; gap:0.5rem;">
                         ${checks.map(chk => {
-        let cl = 'fc-pass', ic = '<i class="fa-solid fa-check"></i>';
-        if (chk.status === 'failed') { cl = 'fc-fail'; ic = '<i class="fa-solid fa-xmark"></i>'; }
-        if (chk.status === 'warning') { cl = 'fc-warn'; ic = '<i class="fa-solid fa-exclamation"></i>'; }
-        return `
-                            <div class="fc-item ${cl}">
-                                <div class="icon">${ic}</div>
-                                <div class="name">${chk.name}</div>
-                                <div class="status">${chk.status}</div>
-                            </div>`;
-    }).join('')}
+                            let statusColor2 = chk.status === 'success' || chk.status === 'passed' ? '#10b981' : (chk.status === 'failed' ? '#ef4444' : '#f59e0b');
+                            let statusIcon2 = chk.status === 'success' || chk.status === 'passed' ? 'fa-circle-check' : (chk.status === 'failed' ? 'fa-circle-xmark' : 'fa-triangle-exclamation');
+                            return `
+                                <div style="display:flex; align-items:center; gap:0.75rem; padding:0.6rem 0.8rem; background:var(--bg-surface-alt); border-radius:10px; border:1px solid var(--border-dim);">
+                                    <i class="fa-solid ${statusIcon2}" style="color:${statusColor2}; font-size:1rem;"></i>
+                                    <div style="flex-grow:1;">
+                                        <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary);">${chk.name}</div>
+                                        <div style="font-size:0.65rem; color:var(--text-secondary); font-weight:600;">${chk.status.toUpperCase()}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
 
-                <!-- 6. Scan Timeline -->
-                <div class="file-card mt-4">
-                    <h3 class="ff-heading"><i class="fa-solid fa-timeline mr-2"></i>Scan Timeline</h3>
-                    <div class="file-timeline">
-                        ${tl.map((t, idx) => `
-                            <div class="ft-item ${idx === tl.length - 1 ? 'ft-active' : ''}">
-                                <div class="ft-dot"></div>
-                                <div class="ft-text">${t}</div>
-                            </div>`).join('')}
-                    </div>
-                </div>
+            </div>
+        </div>
 
-                <!-- 7. Action Buttons -->
-                <div class="file-card mt-4">
-                    <h3 class="ff-heading"><i class="fa-solid fa-bolt mr-2"></i>Actions</h3>
-                    <div class="ff-actions">
-                        <button class="ff-btn ff-btn-sec" onclick="window.print()"><i class="fa-solid fa-file-pdf"></i> Download Report</button>
-                        <button class="ff-btn ff-btn-sec" onclick="triggerRescan('File')"><i class="fa-solid fa-rotate-right"></i> Rescan File</button>
-                        <button class="ff-btn ff-btn-sec"><i class="fa-solid fa-magnifying-glass"></i> Hash Intelligence</button>
-                        <button class="ff-btn ff-btn-danger"><i class="fa-solid fa-ban"></i> Blacklist Hash</button>
-                        <button class="ff-btn ff-btn-sec"><i class="fa-solid fa-share-nodes"></i> Share Report</button>
+        <div class="glass-card result-glass-card file-static-indicators-card">
+            <h3 class="text-sm font-black text-white mb-4 uppercase tracking-widest border-b border-slate-700/50 pb-3"><i class="fa-solid fa-microscope mr-2"></i> Static Indicators</h3>
+            <div class="file-static-indicators-grid">
+                 ${Object.entries(stat).map(([k, v]) => `
+                    <div class="file-static-indicator-item">
+                        <span class="file-static-indicator-label">${k.replace(/_/g, ' ')}</span>
+                        <span class="file-static-indicator-value">${Array.isArray(v) ? v.join(', ') : v}</span>
                     </div>
+                `).join('')}
+                <div class="file-static-indicator-item">
+                    <span class="file-static-indicator-label">Risk Score</span>
+                    <span class="file-static-indicator-value">${riskScore}</span>
                 </div>
             </div>
         </div>
 
-        <!-- 8. Verdict Banner -->
-        <div class="file-verdict mt-5 ${fClass}">
-            <div class="flex items-center gap-4">
-                <i class="fa-solid ${fIcon} text-3xl"></i>
-                <div>
-                    <h4 class="text-[10px] uppercase tracking-widest opacity-75 mb-1">Final Analysis Verdict</h4>
-                    <p class="text-lg font-bold">${verdict}</p>
+        <!-- 6. Actions -->
+        <div class="action-buttons-grid mt-4" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+            <button class="neon-btn btn-secondary" onclick="document.getElementById('file-input').click()"><i class="fa-solid fa-rotate-right"></i> Rescan Artifact</button>
+            <button class="neon-btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-file-pdf"></i> Download Report</button>
+            <button class="neon-btn btn-danger" onclick="addToBlacklist('${filename.replace(/'/g, "\\'")}', 'File')"><i class="fa-solid fa-ban"></i> Add to Blacklist</button>
+            <button class="neon-btn btn-success" style="border-color:rgba(16,185,129,0.3);color:#10b981;" onclick="addToWhitelist('${filename.replace(/'/g, "\\'")}', 'File')"><i class="fa-solid fa-shield-check"></i> Add to Whitelist</button>
+        </div>
+
+        <!-- 7. Verdict Banner -->
+        <div class="verdict-banner ${statusClass}">
+            <div class="flex items-center gap-5 relative z-10">
+                <i class="fa-solid ${fIcon}" style="font-size:2rem; flex-shrink:0;"></i>
+                <div style="min-width:0;">
+                    <h2 style="font-size:0.6rem; font-weight:900; text-transform:uppercase; letter-spacing:0.2em; opacity:0.65; margin-bottom:0.375rem;">Official Security Verdict</h2>
+                    <p style="font-size:1rem; font-weight:800; line-height:1.4; letter-spacing:-0.01em; color:${statusColor};">${verdict}</p>
                 </div>
             </div>
+            <div class="banner-bg-glow"></div>
         </div>
     `;
 
     container.appendChild(wrapper);
+
+    // Initialise Chart if in DOM
+    setTimeout(() => {
+        const canvas = wrapper.querySelector('canvas');
+        if (canvas) {
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [riskScore, 100 - riskScore],
+                        backgroundColor: [statusColor, 'var(--bg-surface-alt)'],
+                        borderWidth: 0,
+                        borderRadius: 6,
+                        cutout: '82%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { tooltip: { enabled: false }, legend: { display: false } }
+                }
+            });
+        }
+    }, 100);
 }
 
 // === EMAIL ANALYZER SPECIFIC UI RENDERING ===
@@ -2058,183 +2389,202 @@ function renderEmailResult(containerId, data) {
     const lnk = data.links_analysis || {};
     const att = data.attachments_analysis || {};
     const checks = data.security_checks || [];
-    const timeline = data.timeline || [];
 
     const threat = data.threat_status || (data.label === 'phishing' ? 'Phishing' : 'Legitimate');
-    const confidence = parseFloat(data.confidence) || 0.0;
     const riskScore = parseFloat(data.risk_score) || 0.0;
     const scanTime = data.scan_time || new Date().toLocaleString();
-    const engine = data.engine || 'ML + AI Email Analysis Engine';
-    const verdict = data.final_verdict || data.reason || `Email classified as ${threat}.`;
+    const engine = data.engine || 'AI Neural Email Intelligence Engine';
+    const verdict = data.final_verdict || data.reason || `Analysis suggests this email is likely ${threat.toLowerCase()}.`;
 
     const isPhish = threat.toLowerCase().includes('phishing');
     const isSusp = threat.toLowerCase().includes('suspicious');
-    const eClass = isPhish ? 'em-danger' : (isSusp ? 'em-warning' : 'em-safe');
+    const statusColor = isPhish ? '#ef4444' : (isSusp ? '#f59e0b' : '#10b981');
+    const statusClass = isPhish ? 'status-danger' : (isSusp ? 'status-warning' : 'status-safe');
     const eIcon = isPhish ? 'fa-fish' : (isSusp ? 'fa-triangle-exclamation' : 'fa-envelope-circle-check');
 
-    const boolCell = (val) => val
-        ? `<span class="em-yes">✔ Yes</span>`
-        : `<span class="em-no">✖ No</span>`;
-    const passCell = (val, yes = 'Pass', no = 'Fail') =>
+    const passCell = (val, yes = 'Valid', no = 'Invalid') =>
         val === 'Pass' || val === true
-            ? `<span class="em-yes">${yes}</span>`
-            : `<span class="em-no">${no}</span>`;
+            ? `<span class="status-badge status-safe">${yes}</span>`
+            : `<span class="status-badge status-danger">${no}</span>`;
 
+    const filteredContentAnalysis = Object.fromEntries(
+        Object.entries(cnt).filter(([k]) => k !== 'phishing_keywords' && k !== 'html_email')
+    );
+
+    wrapper.className = 'premium-dashboard-container animate-fade-in';
     wrapper.innerHTML = `
-        <!-- 1. Summary Card -->
-        <div class="email-card em-summary ${eClass}">
-            <div class="flex justify-between items-start flex-wrap gap-4">
-                <div>
-                    <div class="text-[10px] text-slate-400 uppercase tracking-[0.18em] font-bold mb-2">Email Analyzer Result</div>
-                    <h2 class="text-2xl font-black mb-1">${meta.subject || 'No Subject'}</h2>
-                    <div class="text-sm text-slate-400 mb-3">
-                        <span><i class="fa-solid fa-paper-plane mr-1"></i>${meta.sender || 'Unknown'}</span>
-                        <span class="mx-2">&rarr;</span>
-                        <span>${meta.recipient || 'Unknown'}</span>
+        <!-- 1. Forensic Summary Header -->
+        <div class="glass-card summary-header" style="border-top: 4px solid ${statusColor};">
+            <div class="summary-info">
+                <div class="scan-target-banner" style="background:transparent; border:none; padding:0; margin:0; box-shadow:none;">
+                    <div class="scan-target-banner__top">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
+                            <div class="scan-target-banner__heading">
+                                <span class="scan-target-banner__kicker" style="color:${statusColor}; opacity:1; font-size:0.7rem;">Neural Email Forensics</span>
+                                <p class="scan-target-banner__hint" style="font-size:0.75rem; line-height:1.4; margin-top:0.3rem;">Analyzing deep-header authenticity, linguistic intent analysis, and malicious linkage patterns.</p>
+                            </div>
+                            <div class="scan-target-banner__proto" style="background:var(--bg-surface-alt); border-color:var(--border-dim); color:var(--text-primary); border-width: 1px; border-style: solid; padding: 0.4rem 0.7rem; border-radius:8px; flex-shrink:0;">
+                                <i class="fa-solid ${eIcon}" aria-hidden="true" style="font-size:0.85rem;"></i>
+                                <span class="scan-target-banner__proto-text" style="font-size:0.65rem;">
+                                    <span class="scan-target-banner__proto-title">Mime</span>
+                                    <span class="scan-target-banner__proto-sub">Intel</span>
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex gap-3 flex-wrap items-center">
-                        <span class="em-badge ${eClass}"><i class="fa-solid ${eIcon} mr-1"></i>${threat}</span>
-                        <span class="text-sm opacity-70"><i class="fa-solid fa-microchip mr-1"></i>${engine}</span>
-                        <span class="text-sm opacity-70"><i class="fa-regular fa-clock mr-1"></i>${scanTime}</span>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <div class="text-4xl font-black ${eClass}">${riskScore.toFixed(0)}/100</div>
-                    <div class="text-[10px] uppercase tracking-widest opacity-60 mt-1">Risk Score &middot; Conf ${(confidence * 100).toFixed(0)}%</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="email-grid mt-5">
-            <!-- Left Column -->
-            <div class="em-col">
-                <!-- 2. Header Analysis -->
-                <div class="email-card">
-                    <h3 class="em-heading"><i class="fa-solid fa-file-lines mr-2"></i>Email Header Analysis</h3>
-                    <div class="em-kv-list">
-                        <div class="em-kv"><span class="em-k">SPF:</span><span class="em-v">${passCell(hdr.spf)}</span></div>
-                        <div class="em-kv"><span class="em-k">DKIM:</span><span class="em-v">${passCell(hdr.dkim)}</span></div>
-                        <div class="em-kv"><span class="em-k">DMARC:</span><span class="em-v">${passCell(hdr.dmarc)}</span></div>
-                        <div class="em-kv"><span class="em-k">Return Path:</span><span class="em-v em-trunc">${hdr.return_path || 'N/A'}</span></div>
-                        <div class="em-kv"><span class="em-k">Reply-To:</span><span class="em-v em-trunc">${hdr.reply_to || 'N/A'}</span></div>
-                        <div class="em-kv"><span class="em-k">Message ID:</span><span class="em-v em-trunc">${hdr.message_id || 'N/A'}</span></div>
-                        <div class="em-kv"><span class="em-k">Received Servers:</span><span class="em-v">${hdr.received_servers ?? 'N/A'}</span></div>
-                        <div class="em-kv"><span class="em-k">Header Anomalies:</span><span class="em-v">${boolCell(hdr.header_anomalies)}</span></div>
+                    <h2 class="scan-target-banner__url" style="font-size:1.5rem; font-weight:900; color:var(--text-primary); margin:1rem 0 0.5rem 0; word-break:break-word;">${meta.subject || 'No Subject'}</h2>
+                    <div class="flex items-center gap-2 mt-1" style="flex-wrap:wrap; font-size:0.65rem;">
+                        <div class="glass-tag" style="background:rgba(255,255,255,0.03); padding:0.25rem 0.6rem; border-radius:100px; border:1px solid rgba(255,255,255,0.05);">
+                            <i class="fa-solid fa-paper-plane mr-1" style="font-size:0.6rem;"></i>From: <span class="font-bold">${meta.sender || 'Unknown'}</span>
+                        </div>
+                        <div class="glass-tag" style="background:var(--bg-surface-alt); padding:0.25rem 0.6rem; border-radius:100px; border:1px solid var(--border-dim);">
+                            <i class="fa-solid fa-at mr-1" style="font-size:0.6rem;"></i>Envelope: <span class="font-bold">${meta.sender_domain || 'Unknown'}</span>
+                        </div>
                     </div>
                 </div>
-
-                <!-- 3. Sender Information -->
-                <div class="email-card mt-4">
-                    <h3 class="em-heading"><i class="fa-solid fa-user-shield mr-2"></i>Sender Information</h3>
-                    <div class="em-kv-list">
-                        <div class="em-kv"><span class="em-k">Sender Domain:</span><span class="em-v">${snd.sender_domain || 'N/A'}</span></div>
-                        <div class="em-kv"><span class="em-k">Domain Age:</span><span class="em-v">${snd.domain_age || 'N/A'}</span></div>
-                        <div class="em-kv"><span class="em-k">WHOIS Hidden:</span><span class="em-v">${boolCell(snd.whois_hidden)}</span></div>
-                        <div class="em-kv"><span class="em-k">Sender IP:</span><span class="em-v">${snd.sender_ip || 'N/A'}</span></div>
-                        <div class="em-kv"><span class="em-k">Country:</span><span class="em-v">${snd.sender_country || 'N/A'}</span></div>
-                        <div class="em-kv"><span class="em-k">Mail Server:</span><span class="em-v">${snd.mail_server || 'N/A'}</span></div>
+                <div class="summary-meta-row mt-3">
+                    <div class="meta-item">
+                        <i class="fa-solid fa-microchip"></i>
+                        <span>${engine}</span>
                     </div>
-                </div>
-
-                <!-- 4. Content Analysis -->
-                <div class="email-card mt-4">
-                    <h3 class="em-heading"><i class="fa-solid fa-magnifying-glass-chart mr-2"></i>Content Analysis</h3>
-                    <div class="em-kv-list">
-                        <div class="em-kv"><span class="em-k">Phishing Keywords:</span><span class="em-v ${cnt.phishing_keywords > 0 ? 'em-warn-text' : ''}">${cnt.phishing_keywords ?? 0}</span></div>
-                        <div class="em-kv"><span class="em-k">Suspicious Links:</span><span class="em-v ${cnt.suspicious_links > 0 ? 'em-warn-text' : ''}">${cnt.suspicious_links ?? 0}</span></div>
-                        <div class="em-kv"><span class="em-k">Attachments:</span><span class="em-v">${boolCell(cnt.attachments_present)}</span></div>
-                        <div class="em-kv"><span class="em-k">HTML Email:</span><span class="em-v">${boolCell(cnt.html_email)}</span></div>
-                        <div class="em-kv"><span class="em-k">Urgent Language:</span><span class="em-v">${boolCell(cnt.urgent_language)}</span></div>
-                        <div class="em-kv"><span class="em-k">Spoofed Domain:</span><span class="em-v">${boolCell(cnt.spoofed_domain)}</span></div>
-                        <div class="em-kv"><span class="em-k">Mismatched URLs:</span><span class="em-v">${boolCell(cnt.mismatched_urls)}</span></div>
-                        <div class="em-kv"><span class="em-k">Shortened Links:</span><span class="em-v">${boolCell(cnt.shortened_links)}</span></div>
+                    <div class="meta-item">
+                        <i class="fa-regular fa-clock"></i>
+                        <span>${scanTime}</span>
                     </div>
-                </div>
-
-                <!-- 5. Links Analysis -->
-                <div class="email-card mt-4">
-                    <h3 class="em-heading"><i class="fa-solid fa-link mr-2"></i>Links Analysis</h3>
-                    <div class="em-kv-list">
-                        <div class="em-kv"><span class="em-k">Total Links:</span><span class="em-v">${lnk.total_links ?? 0}</span></div>
-                        <div class="em-kv"><span class="em-k">Suspicious Domains:</span><span class="em-v ${lnk.suspicious_domains > 0 ? 'em-warn-text' : ''}">${lnk.suspicious_domains ?? 0}</span></div>
-                        <div class="em-kv"><span class="em-k">Redirect Links:</span><span class="em-v">${lnk.redirect_links ?? 0}</span></div>
-                        <div class="em-kv"><span class="em-k">IP Address URLs:</span><span class="em-v ${lnk.ip_address_urls > 0 ? 'em-warn-text' : ''}">${lnk.ip_address_urls ?? 0}</span></div>
-                        ${lnk.external_domains && lnk.external_domains.length > 0 ? `
-                        <div class="em-kv em-kv-col"><span class="em-k">External Domains:</span>
-                        <div class="em-tags mt-1">${lnk.external_domains.map(d => `<span class="em-tag em-tag-ext">${d}</span>`).join('')}</div></div>` : ''}
+                    <div class="meta-item">
+                        <span class="status-badge ${statusClass}" style="padding: 0.25rem 0.75rem; font-size: 0.65rem;">VERDICT: ${threat}</span>
                     </div>
                 </div>
             </div>
-
-            <!-- Right Column -->
-            <div class="em-col">
-                <!-- 6. Attachments Analysis -->
-                <div class="email-card">
-                    <h3 class="em-heading"><i class="fa-solid fa-paperclip mr-2"></i>Attachments Analysis</h3>
-                    <div class="em-kv-list">
-                        <div class="em-kv"><span class="em-k">Attachments Present:</span><span class="em-v">${boolCell(att.attachment_names && att.attachment_names.length > 0)}</span></div>
-                        <div class="em-kv"><span class="em-k">Suspicious:</span><span class="em-v">${boolCell(att.suspicious_attachments)}</span></div>
-                        <div class="em-kv"><span class="em-k">Malware Risk:</span><span class="em-v ${att.malware_risk === 'High' ? 'em-danger' : ''}">${att.malware_risk || 'Low'}</span></div>
-                        <div class="em-kv"><span class="em-k">Macro Enabled:</span><span class="em-v">${boolCell(att.macro_enabled)}</span></div>
-                    </div>
-                </div>
-
-                <!-- 7. Security Checks -->
-                <div class="email-card mt-4">
-                    <h3 class="em-heading"><i class="fa-solid fa-shield-halved mr-2"></i>Security Checks</h3>
-                    <div class="email-checklist">
-                        ${checks.map(chk => {
-        let cl = 'ec-pass', ic = '<i class="fa-solid fa-check"></i>';
-        if (chk.status === 'failed') { cl = 'ec-fail'; ic = '<i class="fa-solid fa-xmark"></i>'; }
-        if (chk.status === 'warning') { cl = 'ec-warn'; ic = '<i class="fa-solid fa-exclamation"></i>'; }
-        return `
-                            <div class="ec-item ${cl}">
-                                <div class="icon">${ic}</div>
-                                <div class="name">${chk.name}</div>
-                                <div class="status">${chk.status}</div>
-                            </div>`;
-    }).join('')}
-                    </div>
-                </div>
-
-                <!-- 8. Scan Timeline -->
-                <div class="email-card mt-4">
-                    <h3 class="em-heading"><i class="fa-solid fa-timeline mr-2"></i>Analysis Timeline</h3>
-                    <div class="email-timeline">
-                        ${timeline.map((t, idx) => `
-                            <div class="et-item ${idx === timeline.length - 1 ? 'et-active' : ''}">
-                                <div class="et-dot"></div>
-                                <div class="et-text">${t}</div>
-                            </div>`).join('')}
-                    </div>
-                </div>
-
-                <!-- 9. Action Buttons -->
-                <div class="email-card mt-4">
-                    <h3 class="em-heading"><i class="fa-solid fa-bolt mr-2"></i>Actions</h3>
-                    <div class="em-actions">
-                        <button class="em-btn em-btn-sec" onclick="window.print()"><i class="fa-solid fa-file-pdf"></i> Download Report</button>
-                        <button class="em-btn em-btn-sec" onclick="triggerRescan('Email', '${(meta.body || meta.text || data.text || '').replace(/'/g, "\\'").replace(/\n/g, "\\n")}')"><i class="fa-solid fa-rotate-right"></i> Rescan Email</button>
-                        <button class="em-btn em-btn-sec"><i class="fa-solid fa-code"></i> View Full Headers</button>
-                        <button class="em-btn em-btn-sec"><i class="fa-solid fa-link"></i> Extract Links</button>
-                        <button class="em-btn em-btn-danger"><i class="fa-solid fa-ban"></i> Blacklist Sender</button>
-                        <button class="em-btn em-btn-sec"><i class="fa-solid fa-share-nodes"></i> Share Report</button>
+            <div class="summary-score-col">
+                <div class="chart-wrapper">
+                    <canvas id="email-chart-${Date.now()}"></canvas>
+                    <div class="chart-center">
+                        <span style="font-size:1.8rem; font-weight:950; color:${statusColor}; letter-spacing:-1px;">${riskScore.toFixed(0)}</span>
+                        <span style="font-size:0.5rem; font-weight:800; opacity:0.6; text-transform:uppercase; letter-spacing:1px;">Threat Index</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 10. Verdict Banner -->
-        <div class="email-verdict mt-5 ${eClass}">
-            <div class="flex items-center gap-4">
-                <i class="fa-solid ${eIcon} text-3xl"></i>
-                <div>
-                    <h4 class="text-[10px] uppercase tracking-widest opacity-75 mb-1">Final Email Verdict</h4>
-                    <p class="text-lg font-bold">${verdict}</p>
+        <div class="premium-grid mt-4">
+            <div class="results-grid-col">
+                <!-- 2. Authentication protocol -->
+                <div class="glass-card result-glass-card hover-glow">
+                    <h3 class="text-xs font-black text-primary mb-5 uppercase tracking-[0.2em] border-b border-dim pb-4 flex justify-between items-center">
+                        <span><i class="fa-solid fa-shield-halved mr-2 text-cyan-400"></i> Authentication</span>
+                        <span class="text-[0.6rem] opacity-40">Protocol Verification</span>
+                    </h3>
+                    <div style="display:flex; flex-direction:column; gap:1rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface-alt); border: 1px solid var(--border-dim); padding:0.75rem; border-radius:12px;">
+                            <span style="color:#94a3b8; font-size:0.75rem; font-weight:700;">DKIM Signature:</span>
+                            ${passCell(hdr.dkim_valid)}
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface-alt); border: 1px solid var(--border-dim); padding:0.75rem; border-radius:12px;">
+                            <span style="color:#94a3b8; font-size:0.75rem; font-weight:700;">SPF Alignment:</span>
+                            ${passCell(hdr.spf_pass, 'Pass', 'Fail')}
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface-alt); border: 1px solid var(--border-dim); padding:0.75rem; border-radius:12px;">
+                            <span style="color:#94a3b8; font-size:0.75rem; font-weight:700;">DMARC Policy:</span>
+                            ${passCell(hdr.dmarc_pass, 'Enforced', 'None')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Sender Intelligence -->
+                <div class="glass-card result-glass-card mt-4 hover-glow">
+                    <h3 class="text-xs font-black text-primary mb-5 uppercase tracking-[0.2em] border-b border-dim pb-4"><i class="fa-solid fa-id-card-clip mr-2 text-indigo-400"></i> Sender Intel</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                         <div style="background:var(--bg-surface-alt); padding:1rem; border-radius:12px; border:1px solid var(--border-dim);">
+                            <span style="font-size:0.6rem; font-weight:900; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px;">Reputation</span>
+                            <div style="font-size:1.1rem; font-weight:800; color:var(--text-primary); margin-top:0.25rem;">${snd.reputation || 'N/A'}</div>
+                        </div>
+                         <div style="background:var(--bg-surface-alt); padding:1rem; border-radius:12px; border:1px solid var(--border-dim);">
+                            <span style="font-size:0.6rem; font-weight:900; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px;">Domain Age</span>
+                            <div style="font-size:1.1rem; font-weight:800; color:var(--text-primary); margin-top:0.25rem;">${snd.domain_age || 'N/A'}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <div class="results-grid-col">
+                <!-- 4. Content Risk Assessment -->
+                <div class="glass-card result-glass-card hover-glow h-full">
+                    <h3 class="text-xs font-black text-primary mb-5 uppercase tracking-[0.2em] border-b border-dim pb-4"><i class="fa-solid fa-brain mr-2 text-emerald-400"></i> Deep Content Forensic</h3>
+                    <div style="display:flex; flex-direction:column; gap:0.6rem;">
+                        ${Object.entries(filteredContentAnalysis).map(([k, v]) => `
+                            <div class="premium-list-item" style="display:flex; align-items:center; gap:0.8rem; padding:0.8rem; background:rgba(255,255,255,0.02); border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                                <div style="width:32px; height:32px; border-radius:8px; background:${v ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)'}; display:flex; align-items:center; justify-content:center;">
+                                    <i class="fa-solid ${v ? 'fa-triangle-exclamation text-red-400' : 'fa-check text-emerald-400'}" style="font-size:0.8rem;"></i>
+                                </div>
+                                <div style="flex-grow:1;">
+                                    <div style="font-size:0.75rem; font-weight:800; color:var(--text-primary); text-transform:capitalize; letter-spacing:0.02em;">${k.replace(/_/g, ' ')}</div>
+                                    <div style="font-size:0.55rem; color:var(--text-secondary); font-weight:900; text-transform:uppercase;">${v ? 'Threat Detected' : 'Clean / Neutral'}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Interactive Actions -->
+        <div class="action-buttons-grid mt-6" style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center;">
+            <button class="neon-btn btn-secondary" onclick="document.getElementById('email-input').focus()"><i class="fa-solid fa-rotate-right mr-2"></i> RE-FORENSIC</button>
+            <button class="neon-btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-file-export mr-2"></i> EXPORT REPORT</button>
+            <button class="neon-btn btn-danger" onclick="addToBlacklist('${(meta.sender || 'Unknown').replace(/'/g, "\\'")}', 'Email')"><i class="fa-solid fa-ban mr-2"></i> QUARANTINE SENDER</button>
+            <button class="neon-btn btn-success" style="border-color:rgba(16,185,129,0.3);color:#10b981;" onclick="addToWhitelist('${(meta.sender || 'Unknown').replace(/'/g, "\\'")}', 'Email')"><i class="fa-solid fa-shield-check mr-2"></i> WHITELIST</button>
+        </div>
+
+        <!-- 6. Upgraded Verdict Banner -->
+        <div class="verdict-banner ${statusClass}" style="padding: 1.5rem; margin-top: 2rem;">
+            <div class="flex items-start gap-4 relative z-10 w-full">
+                <div style="width:56px; height:56px; border-radius:16px; background:var(--bg-surface-alt); border:1px solid var(--border-dim); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fa-solid ${eIcon}" style="font-size:1.8rem; color:${statusColor};"></i>
+                </div>
+                <div style="flex-grow:1; min-width:0;">
+                    <div style="margin-bottom:0.5rem;">
+                        <span style="font-size:0.55rem; font-weight:900; text-transform:uppercase; letter-spacing:0.2em; color:${statusColor}; opacity:0.9;">Intelligence Verdict</span>
+                    </div>
+                    <h3 style="font-size:1rem; font-weight:800; line-height:1.4; color:var(--text-primary); margin:0.2rem 0 0.5rem 0;">${verdict}</h3>
+                    <div style="font-size:0.65rem; font-weight:700; color:var(--text-secondary); letter-spacing:0.05em;">CONFIDENCE: ${(riskScore > 50 ? riskScore : 100 - riskScore).toFixed(0)}%</div>
+                </div>
+            </div>
+            <div class="banner-bg-glow" style="background:${statusColor}; opacity:0.1;"></div>
         </div>
     `;
 
     container.appendChild(wrapper);
+
+    // Initialize Chart
+    setTimeout(() => {
+        const canvas = wrapper.querySelector('canvas');
+        if (canvas) {
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [riskScore, 100 - riskScore],
+                        backgroundColor: [statusColor, 'var(--bg-surface-alt)'],
+                        borderWidth: 0,
+                        borderRadius: 10,
+                        cutout: '84%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { tooltip: { enabled: false }, legend: { display: false } },
+                    animation: { duration: 1500, easing: 'easeOutQuart' }
+                }
+            });
+        }
+    }, 100);
 }
+// === INIT ===
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
+    if (window.location.pathname.includes('dashboard')) {
+        restoreDashboardTab();
+    }
+});
