@@ -1,0 +1,19 @@
+# Exclude local/development artifacts
+.git/
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+
+# Exclude environment files
+.env
+.env.*
+
+# Exclude local model artifacts (Groq-only runtime)
+model/
+*.pkl
+
+# Exclude local generated files
+*.log
+*.tmp

@@ -35,3 +35,5 @@ features.txt
 model_type.txt
 generate_test_qr.py
 create_test_doc.py
+.vercel
+.env*.local
